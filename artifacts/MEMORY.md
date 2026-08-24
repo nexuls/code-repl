@@ -103,3 +103,15 @@ Hard-won facts. Things that cost time to discover and would cost it again.
   Re-opening is translated into a `didChange` resync instead.
 - `Position.character` is a **UTF-16 code-unit** offset, not a byte or grapheme
   offset. Relevant the moment a line contains an emoji.
+
+## Highlighting, continued
+
+- The block-comment opener must be tested **before** the line-comment opener.
+  In several languages the block form extends the line form — Lua `--[[` over
+  `--`, Julia `#=` over `#`, Nim `#[` over `#` — so checking the line form first
+  swallows the opener and the block runs to end of file.
+- `"""` must be matched before `"`, or a docstring scans as an empty string
+  followed by an unterminated one, which mis-colours the whole remaining file.
+- The fallback grammar for an unknown language is deliberately *not* TypeScript.
+  Highlighting an unrecognised language with someone else's keyword list is
+  confidently wrong; plain text with working strings and numbers is honest.

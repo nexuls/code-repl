@@ -216,3 +216,28 @@ when it passes. In-flight requests are also failed when the server process exits
 **Why.** An unsettled promise is the worst failure mode available: the feature
 appears to hang, with nothing to report and nothing to retry. A server that stops
 answering must degrade the feature, not the editor.
+
+---
+
+## D16 — Grammar data lives apart from the tokenizer
+
+**Decision.** `lib/grammars.ts` holds the per-language word lists; `lib/highlight.ts`
+stays the scanner. A `grammar()` helper supplies C-family defaults so a new
+language is a few lines of keywords.
+
+**Why.** The tokenizer is logic worth reading carefully; the grammars are a
+table that will be appended to for years. Mixing them makes the interesting file
+mostly data. The split also let the 24 added languages arrive without touching
+the scanner at all — except for two genuine scanner bugs the new languages
+exposed (block-before-line comment ordering, and triple-quoted strings).
+
+## D17 — Unknown languages fall back to plain text
+
+**Decision.** `languageFor()` returns `plainText`, not `typescript`, for a name
+with no grammar.
+
+**Why.** The previous fallback coloured Fortran's `program` and Erlang's `case`
+using TypeScript's keyword list. Confidently wrong highlighting is worse than
+none: it tells the reader the tool understands a language it does not. Plain
+text still highlights strings, numbers, and punctuation, which is most of the
+readability benefit anyway.

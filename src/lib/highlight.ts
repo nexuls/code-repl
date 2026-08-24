@@ -6,6 +6,8 @@
  * per line so the editor can render only the lines it can see.
  */
 
+import * as grammars from "./grammars";
+
 export type TokenKind =
 	| "plain"
 	| "comment"
@@ -36,6 +38,11 @@ export interface LanguageSpec {
 	blockComment?: [string, string];
 	/** Backtick template literals with `${}` interpolation. */
 	templates: boolean;
+	/**
+	 * `"""` / `'''` strings that may span lines. Python docstrings, Scala and
+	 * Kotlin raw strings, and Julia heredocs all use this form.
+	 */
+	tripleQuoted?: boolean;
 	/** `/regex/` literals in expression position. */
 	regex: boolean;
 	keywords: Set<string>;
@@ -73,6 +80,7 @@ const python: LanguageSpec = {
 	lineComment: "#",
 	templates: false,
 	regex: false,
+	tripleQuoted: true,
 	keywords: set(`
 		and as assert async await class def del from global import in is lambda nonlocal
 		not or pass with yield self
@@ -106,10 +114,44 @@ export const LANGUAGES: Record<string, LanguageSpec> = {
 	python,
 	py: python,
 	json,
+	// The rest live in ./grammars.ts, which is word lists rather than code.
+	ruby: grammars.ruby,
+	go: grammars.go,
+	rust: grammars.rust,
+	c: grammars.c,
+	cpp: grammars.cpp,
+	java: grammars.java,
+	csharp: grammars.csharp,
+	php: grammars.php,
+	lua: grammars.lua,
+	perl: grammars.perl,
+	bash: grammars.bash,
+	// Close enough to Bash for highlighting; the differences are in expansion
+	// syntax, which this tokenizer does not model either way.
+	zsh: grammars.bash,
+	fish: grammars.bash,
+	elixir: grammars.elixir,
+	haskell: grammars.haskell,
+	kotlin: grammars.kotlin,
+	swift: grammars.swift,
+	zig: grammars.zig,
+	dart: grammars.dart,
+	julia: grammars.julia,
+	r: grammars.r,
+	nim: grammars.nim,
+	ocaml: grammars.ocaml,
+	scala: grammars.scala,
+	clojure: grammars.clojure,
+	text: grammars.plainText,
 };
 
+/**
+ * Grammar for a language name, falling back to plain text. Colouring an
+ * unrecognised language with TypeScript's keyword list produces confidently
+ * wrong highlighting, which reads worse than none at all.
+ */
 export function languageFor(name: string): LanguageSpec {
-	return LANGUAGES[name.toLowerCase()] ?? typescript;
+	return LANGUAGES[name.toLowerCase()] ?? grammars.plainText;
 }
 
 const isIdentStart = (c: string) => /[A-Za-z_$À-￿]/.test(c);
@@ -212,14 +254,10 @@ export function tokenize(source: string, lang: LanguageSpec): Token[][] {
 			continue;
 		}
 
-		// Comments
-		const line = lang.lineComment;
-		if (line && source.startsWith(line, i)) {
-			const end = source.indexOf("\n", i);
-			push(i, end === -1 ? n : end, "comment");
-			i = end === -1 ? n : end;
-			continue;
-		}
+		// Comments. The block opener is tested first because in several languages
+		// it *extends* the line opener — Lua's `--[[` starts with `--`, Julia's
+		// `#=` with `#`, Nim's `#[` with `#`. Checking the line form first would
+		// swallow the opener and let the block run unterminated.
 		const block = lang.blockComment;
 		if (block && source.startsWith(block[0], i)) {
 			const close = source.indexOf(block[1], i + block[0].length);
@@ -228,8 +266,26 @@ export function tokenize(source: string, lang: LanguageSpec): Token[][] {
 			i = end;
 			continue;
 		}
+		const line = lang.lineComment;
+		if (line && source.startsWith(line, i)) {
+			const end = source.indexOf("\n", i);
+			push(i, end === -1 ? n : end, "comment");
+			i = end === -1 ? n : end;
+			continue;
+		}
 
-		// Strings
+		// Strings. A triple quote is checked first: `"""` would otherwise scan as
+		// an empty string followed by an unterminated one.
+		if (lang.tripleQuoted && (c === '"' || c === "'")) {
+			const fence = c.repeat(3);
+			if (source.startsWith(fence, i)) {
+				const close = source.indexOf(fence, i + 3);
+				const end = close === -1 ? n : close + 3;
+				push(i, end, "string");
+				i = end;
+				continue;
+			}
+		}
 		if (c === '"' || c === "'") {
 			const end = scanQuoted(source, i, c);
 			push(i, end, "string");

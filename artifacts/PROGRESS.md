@@ -36,6 +36,12 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] Completion / hover / diagnostics, all degrading to nothing
 - [x] Tests (30), driven against a real fake-server child process
 
+## Phase 4.5 — Highlighting breadth
+- [x] Grammars for all 30 registry languages (`lib/grammars.ts`)
+- [x] Triple-quoted strings; block-before-line comment ordering
+- [x] Plain-text fallback for unknown languages
+- [x] Tests (30)
+
 ## Phase 5 — UI
 - [ ] `TabBar`
 - [ ] `FileTree`
