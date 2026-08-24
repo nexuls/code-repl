@@ -44,13 +44,17 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 
 ## Phase 5 — UI
 - [x] State reducers: `tabs.ts`, `workspace.ts`, `session.ts` (+40 tests)
-- [ ] `TabBar`
-- [ ] `FileTree`
-- [ ] `OutputPanel`
-- [ ] `StatusBar`
-- [ ] `CompletionPopup`
-- [ ] `LanguagePicker`
-- [ ] App shell wiring, pane focus, global keymap
+- [x] Theme tokens for every pane; shared cell helpers (`lib/text.ts`)
+- [x] `TabBar` — dirty markers, click to select, click to close
+- [x] `FileTree` — windowed rows, lazy expansion, loading and error marks
+- [x] `OutputPanel` — stream colours, chunk joining, ANSI stripping, sticky tail
+- [x] `StatusBar` — language, toolchain presence, run result, priority layout
+- [x] `LanguagePicker` — uninstalled languages shown but unselectable
+- [x] `HelpOverlay` — the keymap, discoverable
+- [x] App shell wiring, pane focus, global keymap, quit confirmation
+- [x] Entry point: argv, signals, terminal restoration on every exit path
+- [x] Tests: 26 component frame tests + 5 whole-app smoke tests
+- [ ] `CompletionPopup` (LSP core is done; the UI surface is not)
 
 ## Phase 6 — Polish
 - [ ] Editor mouse support (click-to-position, drag-select, wheel)

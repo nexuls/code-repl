@@ -20,7 +20,8 @@
       "preset": "recommended",
       "style": {
         "noNonNullAssertion": "off"
-      }
+      },
+      "a11y": "off"
     }
   },
   "json": {

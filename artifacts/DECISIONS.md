@@ -275,3 +275,54 @@ suddenly editing another. Moving left keeps the neighbour you were next to.
 every keystroke would otherwise re-render the tab bar, the status bar, and the
 tree. Tests assert identity (`toBe`), not just equality, because equality would
 pass while the performance property silently broke.
+
+---
+
+## D21 — `App` is the only place state meets IO
+
+**Decision.** Reducers decide what the session becomes, `core/` performs the
+effect, and `App` sequences the two. No component performs IO; no reducer
+awaits anything.
+
+**Why.** It gives every layer a single reason to change and makes the awkward
+part — "read the file, *then* dispatch what was read" — visible in one file
+instead of scattered through the tree. It is also what lets 40 reducer tests run
+with no filesystem.
+
+---
+
+## D22 — Quitting with unsaved buffers asks first
+
+**Decision.** Ctrl+C / Ctrl+Q with dirty buffers opens a modal confirmation, and
+the confirmation does not default to quitting.
+
+**Why.** Losing unsaved work to a mistyped Ctrl+C is the only unrecoverable
+thing this app can do. Everything else — a bad run, a wrong language, a closed
+pane — costs seconds.
+
+**Consequence.** The renderer is created with `exitOnCtrlC: false`, so the app
+must handle every exit path itself, including signals and uncaught errors.
+
+---
+
+## D23 — The tree pane is dropped on a narrow terminal
+
+**Decision.** Below 70 columns the file tree is not rendered, regardless of the
+toggle.
+
+**Why.** 28 columns of file names out of 60 leaves an editor too narrow to read
+code in. Degrading the secondary pane is better than degrading both.
+
+---
+
+## D24 — Each tab gets its own editor instance
+
+**Decision.** `<CodeEditor key={tab.id} />`.
+
+**Why.** The editor owns cursor position, scroll offset, and undo history.
+Sharing one instance across tabs would carry all three between buffers —
+switching to another file and finding the cursor mid-line where it was in the
+previous one, with the previous file's undo stack behind it.
+
+**Cost.** Switching tabs remounts, discarding scroll and undo for the tab being
+left. Worth revisiting if that becomes annoying; correctness first.

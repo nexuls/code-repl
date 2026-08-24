@@ -52,6 +52,9 @@ tests/                 `bun test`. Core logic gets unit tests; UI gets
 - **Comments**: explain *why*, not *what*. A comment restating the next line is
   noise. Every exported symbol gets a doc comment covering its contract and its
   failure mode.
+- **Lint config**: Biome's `a11y` domain is off. Its rules assume a DOM — it
+  flags `onMouseDown` on `<box>` as an interactive-static-element violation —
+  and OpenTUI's intrinsics are not DOM elements.
 - **Colours**: never hardcode a hex value in a component. Add a token to
   `src/lib/theme.ts` and reference it, so themes stay swappable.
 - **State**: reducers are pure and live in `src/app/state/`. Side effects

@@ -115,3 +115,19 @@ Hard-won facts. Things that cost time to discover and would cost it again.
 - The fallback grammar for an unknown language is deliberately *not* TypeScript.
   Highlighting an unrecognised language with someone else's keyword list is
   confidently wrong; plain text with working strings and numbers is honest.
+
+## OpenTUI, continued
+
+- `mockInput.pressKey` takes a `KeyCodes` value, not a key name string.
+  `pressKey("down")` silently does nothing.
+- A lone ESC byte is ambiguous with the start of an escape sequence, so the
+  parser holds it briefly before deciding it is the Escape key. A test that
+  presses ESC and asserts immediately will see nothing; it needs a short wait.
+- Biome's `a11y` rules assume a DOM and flag `onMouseDown` on `<box>` as an
+  interactive-static-element violation. The domain is disabled in `biome.json`.
+- A `biome-ignore` for `useExhaustiveDependencies` must sit directly above the
+  `useEffect(` line — not above the dependency array — or it is reported as an
+  unused suppression.
+- `testRender` accepts a `ReactNode`, so a helper that takes one must not wrap
+  it in a fragment; Biome flags the useless fragment and typing the helper as
+  `ReactElement` then rejects legitimate `ReactNode` callers.
