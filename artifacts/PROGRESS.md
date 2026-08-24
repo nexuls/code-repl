@@ -43,6 +43,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] Tests (30)
 
 ## Phase 5 — UI
+- [x] State reducers: `tabs.ts`, `workspace.ts`, `session.ts` (+40 tests)
 - [ ] `TabBar`
 - [ ] `FileTree`
 - [ ] `OutputPanel`

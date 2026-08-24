@@ -241,3 +241,37 @@ using TypeScript's keyword list. Confidently wrong highlighting is worse than
 none: it tells the reader the tool understands a language it does not. Plain
 text still highlights strings, numbers, and punctuation, which is most of the
 readability benefit anyway.
+
+---
+
+## D18 — Expansion and "children arrived" are separate actions
+
+**Decision.** `workspaceReducer` has `expand`, `loading`, and `children` as three
+distinct actions rather than one async "expand".
+
+**Why.** The intermediate state — expanded, scan in flight, no children yet — is
+a real state the view has to render, and it is the only place a spinner belongs.
+Collapsing the three into one action would make that state unrepresentable and
+force the view to infer it.
+
+---
+
+## D19 — Closing a tab moves focus left
+
+**Decision.** After closing tab *n*, focus goes to `min(n, last)`.
+
+**Why.** Focusing whatever slid into the closed slot means the tab under your
+cursor changes identity without you moving — you close one thing and are
+suddenly editing another. Moving left keeps the neighbour you were next to.
+
+---
+
+## D20 — Reducers return the same object when nothing changed
+
+**Decision.** Every reducer branch returns `state` itself for a no-op, and
+`updateTab` preserves identity when its updater does.
+
+**Why.** These feed React. An `edit` action carrying identical text firing on
+every keystroke would otherwise re-render the tab bar, the status bar, and the
+tree. Tests assert identity (`toBe`), not just equality, because equality would
+pass while the performance property silently broke.
