@@ -5,7 +5,9 @@ const ts = languageFor("typescript");
 
 /** Helper: the kind covering `column` on `line`, or "plain". */
 function kindAt(source: string, line: number, column: number): string {
-	const token = tokenize(source, ts)[line]?.find((t) => t.start <= column && column < t.end);
+	const token = tokenize(source, ts)[line]?.find(
+		(t) => t.start <= column && column < t.end,
+	);
 	return token?.kind ?? "plain";
 }
 
@@ -44,7 +46,10 @@ test("unterminated strings stop at the line break", () => {
 });
 
 test("python and json use their own grammars", () => {
-	const py = tokenize("def go():\n    # note\n    return None", languageFor("python"));
+	const py = tokenize(
+		"def go():\n    # note\n    return None",
+		languageFor("python"),
+	);
 	expect(py[0]![0]!.kind).toBe("keyword");
 	expect(py[1]![0]!.kind).toBe("comment");
 	const js = tokenize('{"a": true}', languageFor("json"));

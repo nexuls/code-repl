@@ -77,9 +77,13 @@ const python: LanguageSpec = {
 		and as assert async await class def del from global import in is lambda nonlocal
 		not or pass with yield self
 	`),
-	control: set("break continue elif else except finally for if raise return try while"),
+	control: set(
+		"break continue elif else except finally for if raise return try while",
+	),
 	literals: set("True False None"),
-	types: set("int float str bool bytes list dict tuple set frozenset object type"),
+	types: set(
+		"int float str bool bytes list dict tuple set frozenset object type",
+	),
 };
 
 const json: LanguageSpec = {
@@ -139,11 +143,13 @@ export function tokenize(source: string, lang: LanguageSpec): Token[][] {
 	let lineCursor = 0;
 	const emit = (from: number, to: number, kind: TokenKind) => {
 		if (to <= from) return;
-		while (lineCursor < lineCount - 1 && lineStarts[lineCursor + 1]! <= from) lineCursor++;
+		while (lineCursor < lineCount - 1 && lineStarts[lineCursor + 1]! <= from)
+			lineCursor++;
 		let line = lineCursor;
 		let pos = from;
 		while (pos < to) {
-			const lineEnd = line + 1 < lineCount ? lineStarts[line + 1]! - 1 : source.length;
+			const lineEnd =
+				line + 1 < lineCount ? lineStarts[line + 1]! - 1 : source.length;
 			const chunkEnd = Math.min(to, lineEnd);
 			if (chunkEnd > pos) {
 				lines[line]!.push({
@@ -254,7 +260,11 @@ export function tokenize(source: string, lang: LanguageSpec): Token[][] {
 			let j = i;
 			while (j < n && /[0-9a-fA-FxXoObBn_.eE]/.test(source[j]!)) {
 				// Stop before an exponent sign only when it is not part of the number.
-				if ((source[j] === "e" || source[j] === "E") && /[+-]/.test(source[j + 1] ?? "")) j++;
+				if (
+					(source[j] === "e" || source[j] === "E") &&
+					/[+-]/.test(source[j + 1] ?? "")
+				)
+					j++;
 				j++;
 			}
 			push(i, j, "number");
@@ -272,7 +282,11 @@ export function tokenize(source: string, lang: LanguageSpec): Token[][] {
 			else if (lang.keywords.has(word)) kind = "keyword";
 			else if (lang.literals.has(word)) kind = "literal";
 			else if (lang.types.has(word)) kind = "type";
-			else if (prev && prev.kind === "punctuation" && source.slice(prev.start, prev.end) === ".")
+			else if (
+				prev &&
+				prev.kind === "punctuation" &&
+				source.slice(prev.start, prev.end) === "."
+			)
 				kind = "property";
 			else if (nextNonSpace(source, j) === "(") kind = "function";
 			else if (/^[A-Z]/.test(word)) kind = "type";
@@ -289,7 +303,10 @@ export function tokenize(source: string, lang: LanguageSpec): Token[][] {
 			continue;
 		}
 		if (c === "}") {
-			if (templateStack.length > 0 && braceDepth === templateStack[templateStack.length - 1]) {
+			if (
+				templateStack.length > 0 &&
+				braceDepth === templateStack[templateStack.length - 1]
+			) {
 				templateStack.pop();
 				push(i, i + 1, "punctuation");
 				inTemplate = true;
@@ -385,7 +402,11 @@ function nextNonSpace(source: string, from: number): string {
 }
 
 /** Restrict tokens to the column window `[from, to)`, rebased to `from`. */
-export function sliceTokens(tokens: Token[], from: number, to: number): Token[] {
+export function sliceTokens(
+	tokens: Token[],
+	from: number,
+	to: number,
+): Token[] {
 	const out: Token[] = [];
 	for (const token of tokens) {
 		if (token.end <= from) continue;

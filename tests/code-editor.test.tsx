@@ -5,10 +5,13 @@ import { act } from "react";
 import { CodeEditor } from "../src/components/CodeEditor";
 
 async function mount(props: Partial<Parameters<typeof CodeEditor>[0]> = {}) {
-	const setup = await testRender(<CodeEditor width={40} height={12} filename="demo.ts" {...props} />, {
-		width: 40,
-		height: 12,
-	});
+	const setup = await testRender(
+		<CodeEditor width={40} height={12} filename="demo.ts" {...props} />,
+		{
+			width: 40,
+			height: 12,
+		},
+	);
 	await setup.renderOnce();
 	return {
 		setup,
@@ -108,7 +111,8 @@ test("scrolls vertically to follow the cursor", async () => {
 	try {
 		expect(frame()).toContain("1 line1");
 		await input(() => {
-			for (let i = 0; i < 30; i++) setup.mockInput.pressKey(KeyCodes.ARROW_DOWN);
+			for (let i = 0; i < 30; i++)
+				setup.mockInput.pressKey(KeyCodes.ARROW_DOWN);
 		});
 		expect(frame()).not.toContain(" 1 line1");
 		expect(frame()).toContain("31 line31");
@@ -119,7 +123,10 @@ test("scrolls vertically to follow the cursor", async () => {
 });
 
 test("readOnly rejects edits", async () => {
-	const { setup, input, frame } = await mount({ value: "frozen", readOnly: true });
+	const { setup, input, frame } = await mount({
+		value: "frozen",
+		readOnly: true,
+	});
 	try {
 		await input(() => setup.mockInput.typeText("xyz"));
 		expect(frame()).toContain("frozen");
@@ -132,7 +139,10 @@ test("readOnly rejects edits", async () => {
 
 test("reports edits through onChange", async () => {
 	let latest = "";
-	const { setup, input } = await mount({ value: "a", onChange: (text) => (latest = text) });
+	const { setup, input } = await mount({
+		value: "a",
+		onChange: (text) => (latest = text),
+	});
 	try {
 		await input(() => {
 			setup.mockInput.pressKey(KeyCodes.END);
@@ -148,7 +158,11 @@ test("reports edits through onChange", async () => {
 test("applies distinct colours to keywords, strings, and comments", async () => {
 	const { setup } = await mount({ value: `const s = "hi" // note` });
 	try {
-		const spans = (setup.captureSpans().lines[1] as { spans: { text: string; fg: unknown }[] }).spans;
+		const spans = (
+			setup.captureSpans().lines[1] as {
+				spans: { text: string; fg: unknown }[];
+			}
+		).spans;
 		const colorOf = (needle: string) =>
 			JSON.stringify(spans.find((span) => span.text.includes(needle))?.fg);
 		// The cursor sits on the first character, so match on the tail of "const".

@@ -1,4 +1,4 @@
-import { createCliRenderer, StyledText, parseColor } from "@opentui/core";
+import { createCliRenderer, parseColor, StyledText } from "@opentui/core";
 import {
 	createRoot,
 	useKeyboard,

@@ -1,7 +1,12 @@
-import { StyledText, parseColor, type TextChunk } from "@opentui/core";
+import { parseColor, StyledText, type TextChunk } from "@opentui/core";
 import { useKeyboard, usePaste } from "@opentui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { languageFor, sliceTokens, tokenize, type Token } from "../lib/highlight";
+import {
+	languageFor,
+	sliceTokens,
+	type Token,
+	tokenize,
+} from "../lib/highlight";
 import { darkTheme, type EditorTheme } from "../lib/theme";
 
 export interface CodeEditorProps {
@@ -66,6 +71,9 @@ export function CodeEditor({
 	const lang = useMemo(() => languageFor(language), [language]);
 	const tokens = useMemo(() => tokenize(lines.join("\n"), lang), [lines, lang]);
 
+	// An unstable onChange identity would re-fire this effect on every render
+	// and loop through the parent's state update, so it stays out of the deps.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: see above
 	useEffect(() => {
 		onChange?.(lines.join("\n"));
 	}, [lines]);
@@ -101,7 +109,8 @@ export function CodeEditor({
 	function moveCursor(mutate: (doc: Doc) => Cursor) {
 		setDoc((prev) => {
 			const next = mutate(prev);
-			if (next.line === prev.cursor.line && next.col === prev.cursor.col) return prev;
+			if (next.line === prev.cursor.line && next.col === prev.cursor.col)
+				return prev;
 			return { ...prev, cursor: next };
 		});
 	}
@@ -115,7 +124,10 @@ export function CodeEditor({
 			const next = lines.slice();
 			if (inserted.length === 1) {
 				next[cursor.line] = before + inserted[0] + after;
-				return { lines: next, cursor: { line: cursor.line, col: cursor.col + inserted[0]!.length } };
+				return {
+					lines: next,
+					cursor: { line: cursor.line, col: cursor.col + inserted[0]!.length },
+				};
 			}
 			const last = inserted[inserted.length - 1]!;
 			const block = [
@@ -144,11 +156,18 @@ export function CodeEditor({
 		const lineText = lines[cursor.line] ?? "";
 
 		// Navigation
-		if (name === "left" || name === "right" || name === "up" || name === "down") {
+		if (
+			name === "left" ||
+			name === "right" ||
+			name === "up" ||
+			name === "down"
+		) {
 			moveCursor(({ lines, cursor }) => {
 				if (name === "left") {
 					if (cursor.col > 0) {
-						const col = key.ctrl ? wordLeft(lines[cursor.line] ?? "", cursor.col) : cursor.col - 1;
+						const col = key.ctrl
+							? wordLeft(lines[cursor.line] ?? "", cursor.col)
+							: cursor.col - 1;
 						desiredCol.current = col;
 						return { line: cursor.line, col };
 					}
@@ -168,7 +187,11 @@ export function CodeEditor({
 					desiredCol.current = 0;
 					return { line: cursor.line + 1, col: 0 };
 				}
-				const line = clamp(cursor.line + (name === "up" ? -1 : 1), 0, lines.length - 1);
+				const line = clamp(
+					cursor.line + (name === "up" ? -1 : 1),
+					0,
+					lines.length - 1,
+				);
 				const target = Math.max(desiredCol.current, cursor.col);
 				desiredCol.current = target;
 				return { line, col: Math.min(target, (lines[line] ?? "").length) };
@@ -185,7 +208,10 @@ export function CodeEditor({
 		}
 		if (name === "end") {
 			desiredCol.current = lineText.length;
-			moveCursor(({ cursor, lines }) => ({ line: cursor.line, col: (lines[cursor.line] ?? "").length }));
+			moveCursor(({ cursor, lines }) => ({
+				line: cursor.line,
+				col: (lines[cursor.line] ?? "").length,
+			}));
 			return;
 		}
 		if (name === "pageup" || name === "pagedown") {
@@ -229,11 +255,15 @@ export function CodeEditor({
 		// Line operations
 		if (key.ctrl && name === "k") {
 			edit(({ lines, cursor }) => {
-				if (lines.length === 1) return { lines: [""], cursor: { line: 0, col: 0 } };
+				if (lines.length === 1)
+					return { lines: [""], cursor: { line: 0, col: 0 } };
 				const next = lines.slice();
 				next.splice(cursor.line, 1);
 				const line = Math.min(cursor.line, next.length - 1);
-				return { lines: next, cursor: { line, col: Math.min(cursor.col, next[line]!.length) } };
+				return {
+					lines: next,
+					cursor: { line, col: Math.min(cursor.col, next[line]!.length) },
+				};
 			});
 			return;
 		}
@@ -241,7 +271,10 @@ export function CodeEditor({
 			edit(({ lines, cursor }) => {
 				const next = lines.slice();
 				next.splice(cursor.line + 1, 0, lines[cursor.line] ?? "");
-				return { lines: next, cursor: { line: cursor.line + 1, col: cursor.col } };
+				return {
+					lines: next,
+					cursor: { line: cursor.line + 1, col: cursor.col },
+				};
 			});
 			return;
 		}
@@ -255,7 +288,10 @@ export function CodeEditor({
 				const extra = /[([{:]$/.test(before.trimEnd()) ? indent : "";
 				const next = lines.slice();
 				next.splice(cursor.line, 1, before, lead + extra + after);
-				return { lines: next, cursor: { line: cursor.line + 1, col: lead.length + extra.length } };
+				return {
+					lines: next,
+					cursor: { line: cursor.line + 1, col: lead.length + extra.length },
+				};
 			});
 			desiredCol.current = 0;
 			return;
@@ -265,11 +301,20 @@ export function CodeEditor({
 			if (key.shift) {
 				edit(({ lines, cursor }) => {
 					const text = lines[cursor.line] ?? "";
-					const removed = Math.min(indentWidth, text.length - text.trimStart().length);
+					const removed = Math.min(
+						indentWidth,
+						text.length - text.trimStart().length,
+					);
 					if (removed === 0) return { lines, cursor };
 					const next = lines.slice();
 					next[cursor.line] = text.slice(removed);
-					return { lines: next, cursor: { line: cursor.line, col: Math.max(0, cursor.col - removed) } };
+					return {
+						lines: next,
+						cursor: {
+							line: cursor.line,
+							col: Math.max(0, cursor.col - removed),
+						},
+					};
 				});
 			} else {
 				insertText(indent);
@@ -283,16 +328,26 @@ export function CodeEditor({
 				if (cursor.col > 0) {
 					// Delete a whole indent step when only whitespace precedes the cursor.
 					const lead = text.slice(0, cursor.col);
-					const step = lead.trim() === "" && cursor.col % indentWidth === 0 ? indentWidth : 1;
+					const step =
+						lead.trim() === "" && cursor.col % indentWidth === 0
+							? indentWidth
+							: 1;
 					const next = lines.slice();
-					next[cursor.line] = text.slice(0, cursor.col - step) + text.slice(cursor.col);
-					return { lines: next, cursor: { line: cursor.line, col: cursor.col - step } };
+					next[cursor.line] =
+						text.slice(0, cursor.col - step) + text.slice(cursor.col);
+					return {
+						lines: next,
+						cursor: { line: cursor.line, col: cursor.col - step },
+					};
 				}
 				if (cursor.line === 0) return { lines, cursor };
 				const prevText = lines[cursor.line - 1] ?? "";
 				const next = lines.slice();
 				next.splice(cursor.line - 1, 2, prevText + text);
-				return { lines: next, cursor: { line: cursor.line - 1, col: prevText.length } };
+				return {
+					lines: next,
+					cursor: { line: cursor.line - 1, col: prevText.length },
+				};
 			});
 			return;
 		}
@@ -302,7 +357,8 @@ export function CodeEditor({
 				const text = lines[cursor.line] ?? "";
 				if (cursor.col < text.length) {
 					const next = lines.slice();
-					next[cursor.line] = text.slice(0, cursor.col) + text.slice(cursor.col + 1);
+					next[cursor.line] =
+						text.slice(0, cursor.col) + text.slice(cursor.col + 1);
 					return { lines: next, cursor };
 				}
 				if (cursor.line >= lines.length - 1) return { lines, cursor };
@@ -315,7 +371,13 @@ export function CodeEditor({
 
 		// Printable characters
 		const seq = key.sequence ?? "";
-		if (!key.ctrl && !key.meta && seq.length === 1 && seq >= " " && seq !== "\x7f") {
+		if (
+			!key.ctrl &&
+			!key.meta &&
+			seq.length === 1 &&
+			seq >= " " &&
+			seq !== "\x7f"
+		) {
 			insertText(seq);
 			desiredCol.current = cursor.col + 1;
 		}
@@ -366,7 +428,14 @@ export function CodeEditor({
 				{rows}
 			</box>
 			<text
-				content={statusChunks(lang.name, cursor, lines.length, readOnly, width - 2, theme)}
+				content={statusChunks(
+					lang.name,
+					cursor,
+					lines.length,
+					readOnly,
+					width - 2,
+					theme,
+				)}
 				wrapMode="none"
 				selectable={false}
 			/>
@@ -380,7 +449,10 @@ function clamp(value: number, min: number, max: number): number {
 
 function splitLines(text: string, indentWidth: number): string[] {
 	// Tabs are expanded so that a column index always equals a display cell.
-	return text.replace(/\r\n?/g, "\n").replace(/\t/g, " ".repeat(indentWidth)).split("\n");
+	return text
+		.replace(/\r\n?/g, "\n")
+		.replace(/\t/g, " ".repeat(indentWidth))
+		.split("\n");
 }
 
 function wordLeft(text: string, col: number): number {
@@ -397,7 +469,12 @@ function wordRight(text: string, col: number): number {
 	return i;
 }
 
-function chunk(text: string, fg: string, bg?: string, attributes = 0): TextChunk {
+function chunk(
+	text: string,
+	fg: string,
+	bg?: string,
+	attributes = 0,
+): TextChunk {
 	return {
 		__isChunk: true,
 		text,
@@ -407,10 +484,19 @@ function chunk(text: string, fg: string, bg?: string, attributes = 0): TextChunk
 	};
 }
 
-function gutterChunks(lineNumber: number, width: number, active: boolean, theme: EditorTheme): StyledText {
-	const label = String(lineNumber).padStart(width - 1, " ") + " ";
+function gutterChunks(
+	lineNumber: number,
+	width: number,
+	active: boolean,
+	theme: EditorTheme,
+): StyledText {
+	const label = `${String(lineNumber).padStart(width - 1, " ")} `;
 	return new StyledText([
-		chunk(label, active ? theme.gutterActive : theme.gutter, active ? theme.currentLine : theme.background),
+		chunk(
+			label,
+			active ? theme.gutterActive : theme.gutter,
+			active ? theme.currentLine : theme.background,
+		),
 	]);
 }
 
@@ -427,7 +513,9 @@ function codeChunks(
 	cursorCol: number,
 	theme: EditorTheme,
 ): StyledText {
-	const visible = text.slice(scrollLeft, scrollLeft + viewCols).padEnd(viewCols, " ");
+	const visible = text
+		.slice(scrollLeft, scrollLeft + viewCols)
+		.padEnd(viewCols, " ");
 	const sliced = sliceTokens(tokens, scrollLeft, scrollLeft + viewCols);
 	const lineBg = isCursorLine ? theme.currentLine : theme.background;
 
@@ -435,7 +523,8 @@ function codeChunks(
 	const colors = new Array<string>(visible.length).fill(theme.token.plain);
 	for (const token of sliced) {
 		const color = theme.token[token.kind];
-		for (let i = token.start; i < token.end && i < colors.length; i++) colors[i] = color;
+		for (let i = token.start; i < token.end && i < colors.length; i++)
+			colors[i] = color;
 	}
 
 	const cursorIndex = cursorCol >= 0 ? cursorCol - scrollLeft : -1;
@@ -454,7 +543,12 @@ function codeChunks(
 	// A run breaks on a colour change and around the cursor cell, so the cursor
 	// always ends up as a chunk of its own.
 	for (let i = 1; i <= visible.length; i++) {
-		if (i === visible.length || colors[i] !== colors[i - 1] || i === cursorIndex || i - 1 === cursorIndex) {
+		if (
+			i === visible.length ||
+			colors[i] !== colors[i - 1] ||
+			i === cursorIndex ||
+			i - 1 === cursorIndex
+		) {
 			flush(i);
 		}
 	}
@@ -479,6 +573,10 @@ function statusChunks(
 	return new StyledText([
 		chunk(left, readOnly ? theme.muted : theme.cursor, theme.surface),
 		chunk(" ".repeat(gap), theme.muted, theme.surface),
-		chunk(right.slice(0, width - left.length - gap), theme.muted, theme.surface),
+		chunk(
+			right.slice(0, width - left.length - gap),
+			theme.muted,
+			theme.surface,
+		),
 	]);
 }
