@@ -16,6 +16,10 @@ export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 /** How many bytes to inspect when deciding whether a file is binary. */
 const SNIFF_BYTES = 4096;
 
+/**
+ * The outcome of reading a file: its text, or a typed refusal. Binary and
+ * oversized files are ordinary things to click on, not errors.
+ */
 export type LoadResult =
 	| { readonly ok: true; readonly text: string; readonly bytes: number }
 	| {
@@ -63,6 +67,7 @@ export async function loadFile(path: string): Promise<LoadResult> {
 	return { ok: true, text: stripBom(text), bytes: bytes.length };
 }
 
+/** The outcome of a write. A failure lets the caller keep the buffer dirty. */
 export type SaveResult =
 	| { readonly ok: true }
 	| { readonly ok: false; readonly message: string };
@@ -121,6 +126,7 @@ export interface IndentStyle {
 	readonly width: number;
 }
 
+/** Style assumed for a buffer with no file behind it. */
 export const DEFAULT_INDENT: IndentStyle = { useTabs: false, width: 2 };
 
 /**

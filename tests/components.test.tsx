@@ -8,6 +8,7 @@ import { FileTree } from "../src/components/FileTree";
 import { HelpOverlay } from "../src/components/HelpOverlay";
 import { LanguagePicker } from "../src/components/LanguagePicker";
 import { OutputPanel } from "../src/components/OutputPanel";
+import { SavePrompt } from "../src/components/SavePrompt";
 import { StatusBar } from "../src/components/StatusBar";
 import { TabBar } from "../src/components/TabBar";
 import { DEFAULT_INDENT } from "../src/core/fs/files";
@@ -662,6 +663,130 @@ describe("HelpOverlay", () => {
 				await setup.mockInput.typeText("x");
 			});
 			expect(closed).toBe(true);
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
+});
+
+describe("SavePrompt", () => {
+	test("shows the destination and a suggested name", async () => {
+		const frame = await frameOf(
+			<SavePrompt
+				directory="/home/me/project"
+				initialName="scratch.py"
+				width={56}
+				theme={darkTheme}
+				onSubmit={() => {}}
+				onCancel={() => {}}
+			/>,
+			56,
+			5,
+		);
+		expect(frame).toContain("/home/me/project");
+		expect(frame).toContain("scratch.py");
+	});
+
+	test("truncates a long directory from the left, keeping its tail", async () => {
+		// The identifying part of a path is its end.
+		const frame = await frameOf(
+			<SavePrompt
+				directory="/a/very/deeply/nested/directory/that/will/not/fit/at/all/here"
+				initialName="x.ts"
+				width={40}
+				theme={darkTheme}
+				onSubmit={() => {}}
+				onCancel={() => {}}
+			/>,
+			40,
+			5,
+		);
+		expect(frame).toContain("here");
+		expect(frame).toContain("…");
+	});
+
+	test("typing edits the name and enter submits it", async () => {
+		const submitted: string[] = [];
+		const setup = await testRender(
+			<SavePrompt
+				directory="/tmp"
+				initialName=""
+				width={56}
+				theme={darkTheme}
+				onSubmit={(name) => submitted.push(name)}
+				onCancel={() => {}}
+			/>,
+			{ width: 56, height: 5 },
+		);
+		try {
+			await setup.renderOnce();
+			await act(async () => {
+				await setup.mockInput.typeText("notes.md");
+			});
+			await act(async () => {
+				await setup.mockInput.pressKey(KeyCodes.RETURN);
+			});
+			expect(submitted).toEqual(["notes.md"]);
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
+
+	test("an empty name is not submitted", async () => {
+		// It would resolve to the directory itself.
+		const submitted: string[] = [];
+		const setup = await testRender(
+			<SavePrompt
+				directory="/tmp"
+				initialName="   "
+				width={56}
+				theme={darkTheme}
+				onSubmit={(name) => submitted.push(name)}
+				onCancel={() => {}}
+			/>,
+			{ width: 56, height: 5 },
+		);
+		try {
+			await setup.renderOnce();
+			await act(async () => {
+				await setup.mockInput.pressKey(KeyCodes.RETURN);
+			});
+			expect(submitted).toEqual([]);
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
+
+	test("backspace deletes and escape cancels", async () => {
+		const submitted: string[] = [];
+		let cancelled = false;
+		const setup = await testRender(
+			<SavePrompt
+				directory="/tmp"
+				initialName="abc"
+				width={56}
+				theme={darkTheme}
+				onSubmit={(name) => submitted.push(name)}
+				onCancel={() => {
+					cancelled = true;
+				}}
+			/>,
+			{ width: 56, height: 5 },
+		);
+		try {
+			await setup.renderOnce();
+			await act(async () => {
+				await setup.mockInput.pressBackspace();
+			});
+			await setup.renderOnce();
+			expect(setup.captureCharFrame()).toContain("ab");
+
+			await act(async () => {
+				await setup.mockInput.pressKey(KeyCodes.ESCAPE);
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			});
+			expect(cancelled).toBe(true);
+			expect(submitted).toEqual([]);
 		} finally {
 			setup.renderer.destroy();
 		}

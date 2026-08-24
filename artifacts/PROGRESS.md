@@ -82,6 +82,16 @@ found four bugs no test had:
 - [x] Accepting a member completion produced `greeting..at`
 All four now have regression tests, each verified to fail without the fix.
 
+## Phase 9 — Enforcement and the save gap
+- [x] `tests/architecture.test.ts` enforces the layering rules in AGENTS.md:
+      nothing under `core/` imports `@opentui`, React, a component, or app state;
+      no component hardcodes a hex colour; every exported symbol in `core/` is
+      documented. Verified by mutation — each rule fails when violated.
+- [x] Documented the 26 exported contracts in `core/` that were missing docs.
+- [x] `ctrl+s` on a scratch buffer now prompts for a name instead of printing an
+      apology. It was advertised in the status bar and the help overlay while
+      doing nothing for most buffers.
+
 ## Notes
 Nothing is deferred silently — anything cut gets an entry in DECISIONS.md
 explaining why.

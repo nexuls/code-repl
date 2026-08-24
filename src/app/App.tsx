@@ -10,6 +10,7 @@
  * truth and no pair of fields that can disagree.
  */
 
+import { join } from "node:path";
 import {
 	useKeyboard,
 	useRenderer,
@@ -28,6 +29,7 @@ import { FileTree } from "../components/FileTree";
 import { HelpOverlay } from "../components/HelpOverlay";
 import { LanguagePicker } from "../components/LanguagePicker";
 import { OutputPanel } from "../components/OutputPanel";
+import { SavePrompt } from "../components/SavePrompt";
 import { StatusBar } from "../components/StatusBar";
 import { TabBar } from "../components/TabBar";
 import { applyIndentStyle, loadFile, saveFile } from "../core/fs/files";
@@ -56,7 +58,13 @@ import {
 	type SessionState,
 	sessionReducer,
 } from "./state/session";
-import { activeTab, dirtyTabs, fileTab, scratchTab } from "./state/tabs";
+import {
+	activeTab,
+	dirtyTabs,
+	fileTab,
+	scratchTab,
+	type Tab,
+} from "./state/tabs";
 
 export interface AppProps {
 	/** Folder to open at startup, from argv. */
@@ -219,36 +227,55 @@ export function App({
 		[session.workspace],
 	);
 
+	/** Write a buffer to a known path and mark it clean. */
+	const writeTo = useCallback(
+		async (target: Tab, path: string) => {
+			// The buffer holds spaces because the editor works in display cells; the
+			// file gets its own indent style back, so opening and saving a
+			// tab-indented file does not silently reformat it.
+			const result = await saveFile(
+				path,
+				applyIndentStyle(target.text, target.indent),
+			);
+			if (!result.ok) {
+				setStatus(`could not save: ${result.message}`);
+				return;
+			}
+			dispatch({
+				type: "tabs",
+				action: {
+					type: "saved",
+					id: target.id,
+					path,
+					title: path.slice(path.lastIndexOf("/") + 1),
+				},
+			});
+			setStatus("saved");
+			// A buffer that just acquired a path is a document the language server
+			// has never been told about.
+			void lsp.current?.openDocument(path, target.language.id, target.text);
+		},
+		[setStatus],
+	);
+
 	const save = useCallback(async () => {
 		if (!tab) return;
 		if (!tab.path) {
-			// A scratch buffer has nowhere to go. Rather than inventing a path, say
-			// so — the file tree is how you choose one.
-			setStatus("scratch buffer has no path — open a folder to save into it");
+			// ctrl+s is advertised in the status bar and the help overlay, so it has
+			// to do something for a scratch buffer too. The opened folder is the
+			// natural destination; without one, the directory we were started in is.
+			dispatch({
+				type: "overlay",
+				overlay: {
+					kind: "save-as",
+					directory: session.workspace.tree?.path ?? process.cwd(),
+					suggestedName: tab.title,
+				},
+			});
 			return;
 		}
-		// The buffer holds spaces because the editor works in display cells; the
-		// file gets its own indent style back, so opening and saving a tab-indented
-		// file does not silently reformat it.
-		const result = await saveFile(
-			tab.path,
-			applyIndentStyle(tab.text, tab.indent),
-		);
-		if (!result.ok) {
-			setStatus(`could not save: ${result.message}`);
-			return;
-		}
-		dispatch({
-			type: "tabs",
-			action: {
-				type: "saved",
-				id: tab.id,
-				path: tab.path,
-				title: tab.path.slice(tab.path.lastIndexOf("/") + 1),
-			},
-		});
-		setStatus("saved");
-	}, [tab, setStatus]);
+		await writeTo(tab, tab.path);
+	}, [tab, session.workspace.tree?.path, writeTo]);
 
 	const run = useCallback(async () => {
 		if (!tab || !scratch.current) return;
@@ -585,6 +612,32 @@ export function App({
 						height={Math.min(22, height - 4)}
 						theme={darkTheme}
 						onClose={() =>
+							dispatch({ type: "overlay", overlay: { kind: "none" } })
+						}
+					/>
+				</box>
+			) : null}
+
+			{session.overlay.kind === "save-as" ? (
+				<box
+					position="absolute"
+					left={Math.max(0, Math.floor((width - 60) / 2))}
+					top={Math.max(0, Math.floor(height / 2) - 2)}
+				>
+					<SavePrompt
+						directory={session.overlay.directory}
+						initialName={session.overlay.suggestedName}
+						width={Math.min(60, width)}
+						theme={darkTheme}
+						onSubmit={(name) => {
+							const directory =
+								session.overlay.kind === "save-as"
+									? session.overlay.directory
+									: process.cwd();
+							dispatch({ type: "overlay", overlay: { kind: "none" } });
+							if (tab) void writeTo(tab, join(directory, name));
+						}}
+						onCancel={() =>
 							dispatch({ type: "overlay", overlay: { kind: "none" } })
 						}
 					/>

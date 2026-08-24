@@ -21,6 +21,7 @@ export type {
 export type { ScratchFile } from "./scratch";
 export { ScratchSpace } from "./scratch";
 
+/** Everything needed to write a buffer to scratch and run it. */
 export interface RunRequest {
 	/** Stable id for the buffer, used as the scratch slot. */
 	readonly slot: string;

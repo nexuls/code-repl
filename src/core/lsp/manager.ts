@@ -40,6 +40,7 @@ interface Session {
 	readonly ready: Promise<void>;
 }
 
+/** Workspace context and the callbacks a host needs to receive server events. */
 export interface LspManagerOptions {
 	/** Workspace root sent as the server's rootUri. */
 	readonly root: string;
@@ -51,6 +52,7 @@ export interface LspManagerOptions {
 	readonly which?: (command: string) => Promise<string | null>;
 }
 
+/** A change in one language's server state, for the status bar. */
 export interface ServerEvent {
 	readonly languageId: string;
 	readonly serverId: string;
@@ -58,6 +60,12 @@ export interface ServerEvent {
 	readonly message?: string;
 }
 
+/**
+ * Owns one server per language and the documents synced to each.
+ *
+ * Every method is safe to call for a language with no server installed, which
+ * is the common case: they return empty rather than raising.
+ */
 export class LspManager {
 	/** Keyed by our language id, not by server id: one server per language. */
 	private readonly sessions = new Map<string, Session>();

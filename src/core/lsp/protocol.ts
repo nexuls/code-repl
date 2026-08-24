@@ -14,6 +14,7 @@ export interface Position {
 	character: number;
 }
 
+/** A half-open span of a document, `start` inclusive and `end` exclusive. */
 export interface Range {
 	start: Position;
 	end: Position;
@@ -27,6 +28,7 @@ export enum DiagnosticSeverity {
 	Hint = 4,
 }
 
+/** One problem the server found, anchored to a range of the document. */
 export interface Diagnostic {
 	range: Range;
 	/** Absent means the server left severity to the client; treat as Error. */
@@ -66,11 +68,20 @@ export enum CompletionItemKind {
 	TypeParameter = 25,
 }
 
+/**
+ * A replacement of an exact range.
+ *
+ * The **range is authoritative**: servers routinely return an edit spanning
+ * more than the word being completed — tsserver's member edits cover the
+ * preceding dot — with that text reinstated in `newText`. Applying `newText`
+ * anywhere but its own range duplicates whatever the range covered.
+ */
 export interface TextEdit {
 	range: Range;
 	newText: string;
 }
 
+/** One suggestion. Only the fields code-repl can act on are modelled. */
 export interface CompletionItem {
 	label: string;
 	kind?: CompletionItemKind;
@@ -89,21 +100,28 @@ export interface CompletionItem {
 	preselect?: boolean;
 }
 
+/**
+ * A completion response. Servers may return this *or* a bare `CompletionItem[]`
+ * — both are in the spec, so both must be handled.
+ */
 export interface CompletionList {
 	isIncomplete: boolean;
 	items: CompletionItem[];
 }
 
+/** Text with a declared format, used by hover and documentation fields. */
 export interface MarkupContent {
 	kind: "plaintext" | "markdown";
 	value: string;
 }
 
+/** Hover information. `contents` has three legal shapes; see `hoverText`. */
 export interface Hover {
 	contents: string | MarkupContent | (string | MarkupContent)[];
 	range?: Range;
 }
 
+/** A range within a specific document. */
 export interface Location {
 	uri: string;
 	range: Range;

@@ -25,6 +25,10 @@ export interface ServerSpec {
 	readonly languageIds: Readonly<Record<string, string>>;
 }
 
+/**
+ * Known servers, in preference order within each language. Presence on `PATH`
+ * is the only thing that decides which is used.
+ */
 export const SERVERS: readonly ServerSpec[] = [
 	{
 		id: "typescript-language-server",

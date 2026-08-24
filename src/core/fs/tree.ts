@@ -13,6 +13,7 @@ import type { Dirent } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 
+/** One entry in the file tree. Directories are scanned lazily; see `children`. */
 export interface TreeNode {
 	/** Absolute path; also the node's identity in the expansion set. */
 	readonly path: string;
@@ -63,6 +64,7 @@ const IGNORED = new Set([
 	".idea",
 ]);
 
+/** What to include when reading a directory. */
 export interface ScanOptions {
 	/** Show dot-files. Default false. */
 	readonly showHidden?: boolean;

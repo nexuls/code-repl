@@ -39,6 +39,12 @@ const STEM_OVERRIDES: Readonly<Record<string, string>> = {
 	java: "Main",
 };
 
+/**
+ * The process's scratch tree.
+ *
+ * Created lazily on first write and removed by `dispose()`, so a session that
+ * never runs anything leaves nothing behind.
+ */
 export class ScratchSpace {
 	/** Root for this process. The pid keeps concurrent sessions from colliding. */
 	readonly root: string;

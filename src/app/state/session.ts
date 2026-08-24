@@ -28,7 +28,13 @@ export type Overlay =
 	| { readonly kind: "languages" }
 	| { readonly kind: "help" }
 	/** Confirmation before discarding unsaved work. */
-	| { readonly kind: "confirm-quit"; readonly dirtyCount: number };
+	| { readonly kind: "confirm-quit"; readonly dirtyCount: number }
+	/** Asking where to put a buffer that has no path yet. */
+	| {
+			readonly kind: "save-as";
+			readonly directory: string;
+			readonly suggestedName: string;
+	  };
 
 export interface SessionState {
 	readonly tabs: TabsState;

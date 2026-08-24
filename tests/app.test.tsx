@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { KeyCodes } from "@opentui/core/testing";
 import { testRender } from "@opentui/react/test-utils";
 import { act } from "react";
 import { App } from "../src/app/App";
@@ -124,6 +125,46 @@ describe("App", () => {
 			expect(frame).not.toContain("1 rust");
 		} finally {
 			setup.renderer.destroy();
+		}
+	}, 20_000);
+
+	test("ctrl+s on a scratch buffer asks for a name and writes the file", async () => {
+		// ctrl+s is advertised in the status bar and the help overlay, so it has to
+		// do something for a buffer with no path — which is most of them in a REPL.
+		const root = await mkdtemp(join(tmpdir(), "code-repl-saveas-"));
+		const setup = await mount({
+			initialFolder: root,
+			initialLanguage: "python",
+		});
+		try {
+			await act(async () => {
+				await setup.mockInput.pressKey("\u0013"); // ctrl+s
+			});
+			await setup.renderOnce();
+			expect(setup.captureCharFrame()).toContain("save as");
+
+			// The prompt starts with the buffer's current name; clear it first.
+			await act(async () => {
+				for (let i = 0; i < "scratch.py".length; i++) {
+					await setup.mockInput.pressBackspace();
+				}
+				await setup.mockInput.typeText("named.py");
+			});
+			await act(async () => {
+				await setup.mockInput.pressKey(KeyCodes.RETURN);
+				await new Promise((resolve) => setTimeout(resolve, 400));
+			});
+			await setup.renderOnce();
+
+			// Written to the opened folder, with the tab renamed and marked clean.
+			expect(await Bun.file(join(root, "named.py")).text()).toContain("hello");
+			const frame = setup.captureCharFrame();
+			expect(frame).toContain("named.py");
+			expect(frame).toContain("saved");
+			expect(frame).not.toContain("named.py •");
+		} finally {
+			setup.renderer.destroy();
+			await rm(root, { recursive: true, force: true });
 		}
 	}, 20_000);
 

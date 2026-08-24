@@ -51,6 +51,7 @@ export interface Toolchain {
 	plan(ctx: PlanContext): readonly RunStep[];
 }
 
+/** One language: how to recognise it, highlight it, and run it. */
 export interface Language {
 	/** Stable identifier used in state, tab metadata, and tests. */
 	readonly id: string;

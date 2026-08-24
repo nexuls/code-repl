@@ -19,6 +19,7 @@ const REQUEST_TIMEOUT_MS = 5_000;
 /** How long to wait for a graceful `shutdown`/`exit` before killing. */
 const SHUTDOWN_TIMEOUT_MS = 1_000;
 
+/** How to start a server and where to route what it says. */
 export interface LspClientOptions {
 	readonly command: string;
 	readonly args: readonly string[];
@@ -39,6 +40,12 @@ interface Pending {
 	timer: ReturnType<typeof setTimeout>;
 }
 
+/**
+ * A live connection to one language server.
+ *
+ * Requests always settle: on a response, on a server error, on a timeout, or
+ * when the process dies. Nothing it returns can hang the editor.
+ */
 export class LspClient {
 	private readonly proc: ChildProcess;
 	private readonly decoder = new MessageDecoder();

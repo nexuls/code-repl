@@ -36,6 +36,7 @@ export type RunStatus =
 	/** The step's executable could not be spawned at all. */
 	| "spawn-error";
 
+/** How a finished run ended, and how long it took. */
 export interface RunResult {
 	readonly status: RunStatus;
 	/** Exit code of the last step that ran, when there was one. */
@@ -46,6 +47,7 @@ export interface RunResult {
 	readonly durationMs: number;
 }
 
+/** A run's steps, its scratch location, and where its output goes. */
 export interface RunOptions {
 	/** Steps to run in order, from a toolchain's `plan()`. */
 	readonly steps: readonly RunStep[];

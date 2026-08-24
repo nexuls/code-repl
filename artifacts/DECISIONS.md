@@ -436,3 +436,35 @@ is only the fallback for items that have none.
 edit range covers the dot and its `newText` reinstates it, so applying that text
 at our own anchor duplicates it. A range naming another line falls back rather
 than corrupting the buffer.
+
+---
+
+## D33 — The layering rules are a test, not a paragraph
+
+**Decision.** `tests/architecture.test.ts` asserts the AGENTS.md rules: no
+`@opentui`, React, component, or app-state import under `core/`; no hex literal
+in a component; a doc comment on every exported symbol in `core/`.
+
+**Why.** Boundaries stated only in prose erode one convenient import at a time,
+and the cost is invisible until the day something in `core/` can no longer be
+tested without a terminal. Each rule was verified by introducing the violation
+and watching it fail.
+
+**Exemption.** Re-exports need no doc of their own — the symbol is documented
+where it is defined, and a copy at the barrel would only drift.
+
+---
+
+## D34 — ctrl+s prompts rather than apologising
+
+**Decision.** Saving a buffer with no path opens a name prompt, defaulting to the
+opened folder (or the working directory).
+
+**Why.** ctrl+s is advertised in the status bar and the help overlay, and in a
+REPL most buffers are scratch buffers. The previous behaviour printed "scratch
+buffer has no path — open a folder to save into it", which was both a dead end
+and untrue: opening a folder would not have helped, because there was still no
+way to name the file. An advertised key that never works is a defect.
+
+**Scope.** A line editor, not a file browser. The tree already exists for
+choosing a directory; what is missing at that moment is a name.
