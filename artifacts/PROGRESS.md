@@ -1,0 +1,53 @@
+# Progress
+
+Legend: `[x]` done · `[~]` in progress · `[ ]` not started
+
+## Phase 0 — Foundations
+- [x] Bun + OpenTUI React project scaffold
+- [x] Biome lint/format gate
+- [x] Dependency-free incremental highlighter (`lib/highlight.ts`)
+- [x] Theme tokens (`lib/theme.ts`)
+- [x] `CodeEditor` — cursor, scroll, undo/redo, indent, paste
+- [x] AGENTS.md + CLAUDE.md symlink
+- [x] `artifacts/` established
+
+## Phase 1 — Language detection
+- [ ] Language registry
+- [ ] PATH probing + version resolution
+- [ ] Tests
+
+## Phase 2 — Run pipeline
+- [ ] Scratch directory lifecycle
+- [ ] Compile-then-execute with streaming output
+- [ ] Timeout + cancellation
+- [ ] Tests
+
+## Phase 3 — Workspace
+- [ ] Lazy directory scan with ignore rules
+- [ ] File read/write with binary guards
+- [ ] Tests
+
+## Phase 4 — LSP
+- [ ] JSON-RPC stdio client
+- [ ] Server lifecycle manager
+- [ ] Completion / hover / diagnostics
+- [ ] Tests
+
+## Phase 5 — UI
+- [ ] `TabBar`
+- [ ] `FileTree`
+- [ ] `OutputPanel`
+- [ ] `StatusBar`
+- [ ] `CompletionPopup`
+- [ ] `LanguagePicker`
+- [ ] App shell wiring, pane focus, global keymap
+
+## Phase 6 — Polish
+- [ ] Editor mouse support (click-to-position, drag-select, wheel)
+- [ ] Diagnostics in the gutter and underlined inline
+- [ ] Command palette
+- [ ] Frame-level UI tests
+
+## Notes
+Nothing is deferred silently — anything cut gets an entry in DECISIONS.md
+explaining why.
