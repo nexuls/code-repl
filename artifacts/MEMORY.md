@@ -34,3 +34,23 @@ Hard-won facts. Things that cost time to discover and would cost it again.
 - An effect that calls `onChange` must not list `onChange` in its deps: an
   unstable parent callback identity re-fires the effect, which updates the
   parent, which re-creates the callback. The dep array deliberately omits it.
+
+## Toolchains
+
+- Version flags are wildly inconsistent: `--version` for most, `-version` for
+  `java`, `version` for `go` and `zig`, `-v` for `lua` and `perl`. Each toolchain
+  carries its own `versionArgs`.
+- Many tools print their version banner to **stderr**, not stdout (`java
+  -version`, `lua -v`). The probe reads both and takes the first non-empty one.
+- Java 11+ can run a single `.java` file directly (`java Main.java`), which
+  bypasses the rule that a public class name must match its file name. That form
+  is preferred over `javac` + `java` precisely because scratch files have
+  generated names.
+- `go run` and `zig run` and `nim r` compile into their own caches, so those
+  languages need one step, not two — the compile/run split is a property of the
+  toolchain, not the language.
+- `dotnet run` requires a project directory, so C# detection targets scripting
+  hosts (`dotnet-script`, `csi`, `mono`) instead.
+- The version probe must have a timeout. A misconfigured install that hangs on
+  `--version` would otherwise hang startup, since detection runs before first
+  paint.

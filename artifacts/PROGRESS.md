@@ -12,9 +12,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] `artifacts/` established
 
 ## Phase 1 — Language detection
-- [ ] Language registry
-- [ ] PATH probing + version resolution
-- [ ] Tests
+- [x] Language registry — 30 languages, toolchains in preference order
+- [x] PATH probing + version resolution, memoised per process
+- [x] Tests (16)
 
 ## Phase 2 — Run pipeline
 - [ ] Scratch directory lifecycle

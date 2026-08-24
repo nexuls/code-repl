@@ -60,3 +60,31 @@ the user opened.
 overwrites a real file whose name collides — is a tool people stop trusting.
 Keeping scratch state in one removable directory also makes cleanup a single
 `rm -rf` on exit.
+
+---
+
+## D5 — Unavailable languages are shown, not hidden
+
+**Decision.** `detectLanguage` returns a `DetectedLanguage` for every language in
+the registry, with `toolchain: undefined` when nothing is installed.
+
+**Why.** A picker that silently omits Rust because `rustc` is missing is
+indistinguishable from one that has never heard of Rust. Showing it greyed out
+tells the user the tool supports it and the machine does not, which is
+actionable.
+
+**Consequence.** Every consumer must check `isAvailable()` before building a run
+plan.
+
+---
+
+## D6 — Toolchains are ordered lists, and the first complete one wins
+
+**Decision.** A language declares several toolchains; detection takes the first
+whose `requires` are *all* on `PATH`.
+
+**Why.** TypeScript can be run by `bun`, `deno`, `tsx`, or `ts-node`, and C by
+`cc`, `gcc`, or `clang`. Ordering encodes preference (fastest / most standard
+first) while a machine with only the last one still works. `requires` being a
+list rather than a single binary is what makes Java's `javac`+`java` pair
+expressible without a special case.
