@@ -161,3 +161,58 @@ you hit a permission-denied folder. The tab can say "binary file" and the tree
 can mark one folder as failed, without an error path that blanks the pane. The
 size and NUL-byte checks happen *before* anything reaches a buffer, because
 splitting 200 MB into an array of lines would freeze the terminal.
+
+---
+
+## D12 — Every LSP-backed feature degrades to nothing
+
+**Decision.** No server installed, a server that crashed, a request that timed
+out: `completion()` returns `[]`, `hover()` returns `null`, diagnostics stay
+empty. Nothing surfaces as an error.
+
+**Why.** A machine with no language servers is the *common* case, not the
+exception — that is the whole premise of "the machine owns the toolchains". The
+editor has to be fully usable there. An error toast for a missing `pyright` would
+fire on every keystroke.
+
+**Consequence.** `LspManager.ask()` catches everything. That is deliberate, and
+the reason each layer beneath it (client, framing) is separately tested: the
+manager cannot distinguish a bug from an absent server, so the bugs have to be
+caught lower down.
+
+---
+
+## D13 — Full-text document sync, not incremental
+
+**Decision.** `textDocument/didChange` sends the whole buffer.
+
+**Why.** Incremental sync would require the editor to track and translate edit
+ranges into LSP's UTF-16 offsets on every keystroke — a meaningful amount of
+error-prone bookkeeping. For scratch-sized files, shipping the whole text is
+cheaper than maintaining that. Every server supports full sync.
+
+**Revisit if.** Opening large files from a workspace becomes a common flow and
+the per-keystroke cost shows up.
+
+---
+
+## D14 — LSP framing buffers bytes, never decoded strings
+
+**Decision.** `MessageDecoder` accumulates `Uint8Array` and slices by byte
+offset.
+
+**Why.** `Content-Length` counts **bytes**. Buffering decoded strings and slicing
+by character silently corrupts every message containing a non-ASCII character —
+and servers put non-ASCII in diagnostic text routinely. There is a test using
+`型 error ✓` specifically to hold this line.
+
+---
+
+## D15 — Requests are always timed out
+
+**Decision.** Every `LspClient.request` has a deadline (5 s default) and rejects
+when it passes. In-flight requests are also failed when the server process exits.
+
+**Why.** An unsettled promise is the worst failure mode available: the feature
+appears to hang, with nothing to report and nothing to retry. A server that stops
+answering must degrade the feature, not the editor.

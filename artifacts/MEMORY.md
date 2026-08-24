@@ -82,3 +82,24 @@ Hard-won facts. Things that cost time to discover and would cost it again.
 - Decoding is deliberately non-fatal: a file that is mostly UTF-8 with one bad
   byte is still worth reading with replacement characters. Only a NUL earns a
   refusal.
+
+## LSP
+
+- `Content-Length` is a **byte** count. Reassembly must buffer bytes; decoding
+  first and slicing by character breaks any message with non-ASCII text.
+- A pipe can deliver a message one byte at a time, or three messages in one
+  chunk. The decoder is tested at both extremes.
+- `textDocument/completion` legitimately returns *either* a bare array *or* a
+  `CompletionList`. Both are in the spec; both must be handled.
+- Servers order candidates through `sortText`, which is frequently nothing like
+  alphabetical — it is how "the member you probably want" reaches the top. Sort
+  by `sortText` and fall back to `label`, never sort by label alone.
+- The protocol's `languageId` is not always the obvious name: shell scripts are
+  `shellscript`, not `bash`. Each server spec carries its own mapping.
+- A server request *to* the client must be answered even if we do not implement
+  it — some servers stall waiting. Unknown server-initiated requests get a
+  `null` result.
+- A second `didOpen` for an already-open document is rejected by some servers.
+  Re-opening is translated into a `didChange` resync instead.
+- `Position.character` is a **UTF-16 code-unit** offset, not a byte or grapheme
+  offset. Relevant the moment a line contains an emoji.

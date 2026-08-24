@@ -29,10 +29,12 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] Tests (28)
 
 ## Phase 4 — LSP
-- [ ] JSON-RPC stdio client
-- [ ] Server lifecycle manager
-- [ ] Completion / hover / diagnostics
-- [ ] Tests
+- [x] Byte-accurate `Content-Length` framing (`lsp/framing.ts`)
+- [x] JSON-RPC stdio client with per-request timeouts (`lsp/client.ts`)
+- [x] Server registry — 30 servers across 24 languages
+- [x] Lifecycle manager, lazy per-language start, full-text sync
+- [x] Completion / hover / diagnostics, all degrading to nothing
+- [x] Tests (30), driven against a real fake-server child process
 
 ## Phase 5 — UI
 - [ ] `TabBar`
