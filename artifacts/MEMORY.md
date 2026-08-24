@@ -131,3 +131,11 @@ Hard-won facts. Things that cost time to discover and would cost it again.
 - `testRender` accepts a `ReactNode`, so a helper that takes one must not wrap
   it in a fragment; Biome flags the useless fragment and typing the helper as
   `ReactElement` then rejects legitimate `ReactNode` callers.
+
+## Terminal input
+
+- Ctrl+Space arrives as a **NUL byte** (`U+0000`), not as a named key with a
+  ctrl modifier. Writing that byte literally into a source file makes the file
+  binary to `grep` and invisible to most tooling — it must be an escape.
+- OpenTUI's underline is `TextAttributes.UNDERLINE` (8). Use the exported enum
+  rather than a hand-written bit; the numbering is not obvious from the name.

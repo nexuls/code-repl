@@ -326,3 +326,53 @@ previous one, with the previous file's undo stack behind it.
 
 **Cost.** Switching tabs remounts, discarding scroll and undo for the tab being
 left. Worth revisiting if that becomes annoying; correctness first.
+
+---
+
+## D25 — The editor owns the completion popup; the host owns the items
+
+**Decision.** `CodeEditor` takes a `completionProvider(line, column)` callback,
+and owns the popup, the keys, and the insertion. `App` wires the callback to
+`LspManager`.
+
+**Why.** Accepting a completion is an *edit*, and the editor is the only thing
+that knows the cursor, the partial word, and the undo stack. Lifting the popup
+out would mean pushing all three back down through props. Keeping the source of
+items out means the editor has no LSP dependency beyond the protocol's data
+types, and tests drive it with a plain async function.
+
+---
+
+## D26 — Accepting a completion replaces the word, not the cursor position
+
+**Decision.** The popup records the column the partial word started at, and
+accepting replaces from there.
+
+**Why.** Inserting at the cursor turns `con` + `console` into `conconsole`. The
+anchor is captured when the popup opens, so it stays correct as you keep typing.
+A test asserts exactly this string.
+
+---
+
+## D27 — Completion responses are versioned
+
+**Decision.** Each request takes a monotonic token; a response whose token is no
+longer current is dropped.
+
+**Why.** Completion is requested on nearly every keystroke and servers answer out
+of order. Without the guard, a slow response for a prefix you have already moved
+past reopens the popup under stale items — the classic "the suggestion list keeps
+flickering back" bug.
+
+---
+
+## D28 — Diagnostics keep the syntax colour and add an underline
+
+**Decision.** The underline is a separate attribute mask applied over the token
+colours, not a colour override.
+
+**Why.** Recolouring an errored range destroys the syntax highlighting exactly
+where you are trying to read carefully. The gutter mark also *replaces* the
+gutter's trailing space rather than widening it, so a diagnostic appearing does
+not reflow the whole document sideways — there is a test comparing the code's
+start column with and without.

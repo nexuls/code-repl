@@ -54,13 +54,16 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] App shell wiring, pane focus, global keymap, quit confirmation
 - [x] Entry point: argv, signals, terminal restoration on every exit path
 - [x] Tests: 26 component frame tests + 5 whole-app smoke tests
-- [ ] `CompletionPopup` (LSP core is done; the UI surface is not)
+- [x] `CompletionPopup`
 
 ## Phase 6 — Polish
-- [ ] Editor mouse support (click-to-position, drag-select, wheel)
-- [ ] Diagnostics in the gutter and underlined inline
+- [x] Editor mouse support: click to position, drag to follow, wheel to scroll
+- [x] Diagnostics: gutter marks, inline underlines, message under the cursor
+- [x] Completion: ctrl+space and `.`, stale-response guard, word replacement
+- [x] Frame-level UI tests (26 component + 21 editor/LSP + 5 whole-app)
+- [ ] Range text selection in the editor (drag currently moves the caret only)
+- [ ] Hover tooltips (`LspManager.hover` exists; nothing renders it)
 - [ ] Command palette
-- [ ] Frame-level UI tests
 
 ## Notes
 Nothing is deferred silently — anything cut gets an entry in DECISIONS.md

@@ -303,6 +303,25 @@ export function App({
 		}
 	}, [tab, languages, setStatus]);
 
+	/**
+	 * Completion source for the editor.
+	 *
+	 * Returns `[]` for an unsaved buffer as well as for a missing server: LSP
+	 * addresses documents by URI, and a scratch buffer has no path to build one
+	 * from. Empty is the correct answer either way — the popup simply does not
+	 * appear.
+	 */
+	const completionProvider = useCallback(
+		async (line: number, character: number) => {
+			if (!tab?.path || !lsp.current) return [];
+			return lsp.current.completion(tab.path, tab.language.id, {
+				line,
+				character,
+			});
+		},
+		[tab?.path, tab?.language.id],
+	);
+
 	const quit = useCallback(() => {
 		renderer.destroy();
 		process.exit(0);
@@ -475,6 +494,8 @@ export function App({
 							height={editorHeight}
 							focused={session.pane === "editor"}
 							theme={darkTheme}
+							diagnostics={tab.diagnostics}
+							completionProvider={completionProvider}
 							onChange={(text) => {
 								dispatch({
 									type: "tabs",
