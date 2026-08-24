@@ -139,3 +139,12 @@ Hard-won facts. Things that cost time to discover and would cost it again.
   binary to `grep` and invisible to most tooling — it must be an escape.
 - OpenTUI's underline is `TextAttributes.UNDERLINE` (8). Use the exported enum
   rather than a hand-written bit; the numbering is not obvious from the name.
+
+## Java
+
+- `java Main.java` single-file source mode **compiles in-process** and needs the
+  `jdk.compiler` module. A JRE-only install has `java` on PATH, starts happily,
+  and then dies with `InternalError: Module jdk.compiler not in boot Layer`.
+  Detecting `java` alone is therefore not enough: the toolchain requires `javac`
+  as the proxy for "this is a JDK", even though the run plan never invokes it.
+  Found by the integration suite; a unit test now pins it.

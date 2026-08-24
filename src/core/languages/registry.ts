@@ -309,9 +309,15 @@ const LANGUAGE_LIST: readonly Language[] = [
 		toolchains: [
 			// Java 11+ runs a single-file source program directly, which sidesteps
 			// the public-class-name-must-match-the-file rule entirely.
+			//
+			// `javac` is required even though the plan never invokes it: single-file
+			// mode compiles in-process and needs the `jdk.compiler` module, which a
+			// JRE-only install does not have. Its `java` runs fine and then dies with
+			// "Module jdk.compiler not in boot Layer". The presence of `javac` is the
+			// cheap proxy for "this is a JDK".
 			{
 				id: "java-single-file",
-				requires: ["java"],
+				requires: ["java", "javac"],
 				versionArgs: ["-version"],
 				plan: ({ file }) => [{ label: "run", command: "java", args: [file] }],
 			},

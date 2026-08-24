@@ -65,6 +65,12 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [ ] Hover tooltips (`LspManager.hover` exists; nothing renders it)
 - [ ] Command palette
 
+## Phase 7 — End-to-end verification
+- [x] Integration suite that detects and actually runs every installed language
+- [x] Real failure paths: runtime error, compile error, timeout, stdin
+- [x] Verified on this machine: TypeScript, JavaScript, Python, Go, Rust, C,
+      C++, Lua, Perl, Bash, Zsh, JSON all compile/run and print. The rest skip.
+
 ## Notes
 Nothing is deferred silently — anything cut gets an entry in DECISIONS.md
 explaining why.

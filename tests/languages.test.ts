@@ -107,9 +107,17 @@ describe("detect", () => {
 
 	test("skips a toolchain missing any of its requirements", async () => {
 		const java = languageById("java")!;
-		// `javac` alone cannot satisfy either toolchain: the single-file form needs
-		// `java`, and the compile form needs both.
 		const detected = await detectLanguage(java, fakeEnv(["javac"]));
+		expect(isAvailable(detected)).toBe(false);
+	});
+
+	test("a JRE without javac cannot run Java at all", async () => {
+		// Found by the integration suite on a JRE-only machine: `java Main.java`
+		// compiles in-process and needs the jdk.compiler module, so it starts fine
+		// and then dies with "Module jdk.compiler not in boot Layer". Requiring
+		// javac is the proxy for "this is a JDK".
+		const java = languageById("java")!;
+		const detected = await detectLanguage(java, fakeEnv(["java"]));
 		expect(isAvailable(detected)).toBe(false);
 	});
 
@@ -119,6 +127,7 @@ describe("detect", () => {
 		// The single-file `java <file>` toolchain is declared first.
 		expect(detected.toolchain?.id).toBe("java-single-file");
 		expect(detected.binaries.java).toBe("/usr/bin/java");
+		expect(detected.binaries.javac).toBe("/usr/bin/javac");
 	});
 
 	test("reports an unavailable language instead of omitting it", async () => {

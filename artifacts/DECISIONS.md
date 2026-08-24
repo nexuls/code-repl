@@ -376,3 +376,18 @@ where you are trying to read carefully. The gutter mark also *replaces* the
 gutter's trailing space rather than widening it, so a diagnostic appearing does
 not reflow the whole document sideways — there is a test comparing the code's
 start column with and without.
+
+---
+
+## D29 — An integration suite runs the real toolchains, and skips what is absent
+
+**Decision.** `tests/integration.test.ts` detects what the machine has and
+actually compiles and runs each installed language's template. Absent languages
+`skip`, they do not fail.
+
+**Why.** Unit tests prove a run plan is *built* correctly. Only this proves the
+plan is *right*: that `rustc` accepts those flags, that a compiled binary lands
+where the second step looks for it, that Java's single-file mode tolerates a
+generated file name. A registry entry can be perfectly well-formed and still not
+run — which is exactly what it found on its first run (see D30). Failing on a
+machine without Go would make the suite useless, so absence is a skip.
