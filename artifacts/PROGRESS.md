@@ -23,9 +23,10 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] Tests (20)
 
 ## Phase 3 — Workspace
-- [ ] Lazy directory scan with ignore rules
-- [ ] File read/write with binary guards
-- [ ] Tests
+- [x] Lazy directory scan with ignore rules, symlink resolution, error nodes
+- [x] Structural-sharing tree updates + flatten-to-rows
+- [x] File read/write with binary and size guards
+- [x] Tests (28)
 
 ## Phase 4 — LSP
 - [ ] JSON-RPC stdio client

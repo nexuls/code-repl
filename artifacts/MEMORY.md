@@ -71,3 +71,14 @@ Hard-won facts. Things that cost time to discover and would cost it again.
 - A child killed by a signal reports `code === null` on `close`; the signal name
   arrives separately. It is mapped to the shell's `128 + signo` convention so the
   exit code stays a number.
+
+## Filesystem
+
+- A `Dirent` for a symlink reports neither `isFile()` nor `isDirectory()`, so
+  links must be `stat`'d to be classified. A broken link is skipped entirely —
+  showing it as a file produces a tab that can never open.
+- Binary detection is a NUL byte in the first 4 KB, which is what `git` and
+  `grep` use. Cheap, and no false positives on real source.
+- Decoding is deliberately non-fatal: a file that is mostly UTF-8 with one bad
+  byte is still worth reading with replacement characters. Only a NUL earns a
+  refusal.

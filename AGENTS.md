@@ -45,6 +45,8 @@ tests/                 `bun test`. Core logic gets unit tests; UI gets
 - **Runtime**: Bun. `bun run dev` starts the app with watch mode.
 - **Formatting/lint**: Biome, tabs, double quotes. Run `bun run check:fix`
   before committing; CI-equivalent gate is `bun run check && bun test`.
+  `check` runs Biome **and** `tsc --noEmit` — Biome does not typecheck, and a
+  type error will otherwise sail straight through a green lint run.
 - **Types**: `strict`. No `any` in committed code — use `unknown` plus a
   narrowing guard.
 - **Comments**: explain *why*, not *what*. A comment restating the next line is

@@ -8,8 +8,9 @@
     "test": "bun test",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "check": "biome check . && tsc --noEmit",
+    "check:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.10",

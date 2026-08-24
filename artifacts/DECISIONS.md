@@ -122,3 +122,42 @@ status.
 it an exception would force every caller to convert it back into something
 displayable. Only "this machine fundamentally cannot run this language" is a
 programming error on the caller's part, so only that throws.
+
+---
+
+## D9 — The file tree scans one level at a time
+
+**Decision.** `scanDirectory` reads a single directory. A directory's children
+are `undefined` until it is expanded.
+
+**Why.** Opening a folder must be instant, and a recursive scan of a monorepo is
+seconds of IO for rows nobody will look at. Laziness also bounds memory on a tree
+with a pathological depth.
+
+**Consequence.** `children: undefined` (not scanned) and `children: []`
+(genuinely empty) mean different things, and the view depends on the difference
+to show a loading state exactly once. Tests assert it.
+
+---
+
+## D10 — Tree updates share structure
+
+**Decision.** `replaceChildren` rebuilds only the nodes between the root and the
+changed node, and short-circuits on a path prefix check.
+
+**Why.** The tree is React state. Rebuilding every node on every expansion would
+re-render every row of a large tree; sharing untouched branches means identity
+changes exactly where content changed, so memoised rows stay memoised.
+
+---
+
+## D11 — Unreadable input is a value, not an exception
+
+**Decision.** `scanDirectory` returns a node carrying `error`; `loadFile` returns
+a discriminated refusal with `reason: "too-large" | "binary" | "unreadable"`.
+
+**Why.** These are ordinary conditions in a file browser — you click a `.png`,
+you hit a permission-denied folder. The tab can say "binary file" and the tree
+can mark one folder as failed, without an error path that blanks the pane. The
+size and NUL-byte checks happen *before* anything reaches a buffer, because
+splitting 200 MB into an array of lines would freeze the terminal.
