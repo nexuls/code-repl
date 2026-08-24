@@ -131,6 +131,18 @@ export function CodeEditor({
 		setCompletion(undefined);
 	}, []);
 
+	/**
+	 * Set when an edit should be followed by a completion request.
+	 *
+	 * Two problems it solves. First, asking immediately queries a document the
+	 * server has not been told about yet, so it completes against the *previous*
+	 * text — the global scope instead of the members of the thing just dotted.
+	 * Second, the position must not be captured here: a key handler's `cursor`
+	 * is the pre-edit one, and a paste can move the cursor arbitrarily far. The
+	 * flag carries no position, and the draining effect reads the settled cursor.
+	 */
+	const completionQueued = useRef(false);
+
 	const requestCompletion = useCallback(
 		async (line: number, col: number, lineText: string) => {
 			if (!completionProvider) return;
@@ -158,6 +170,19 @@ export function CodeEditor({
 	useEffect(() => {
 		onChange?.(lines.join("\n"));
 	}, [lines]);
+
+	// Effects on the same dependency run in declaration order, so by the time
+	// this fires the host has already pushed the new text to the server.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: ordering, see above
+	useEffect(() => {
+		if (!completionQueued.current) return;
+		completionQueued.current = false;
+		void requestCompletion(
+			doc.cursor.line,
+			doc.cursor.col,
+			doc.lines[doc.cursor.line] ?? "",
+		);
+	}, [lines, doc]);
 
 	// An unstable onCursorChange identity would re-fire on every render; only the
 	// position matters here.
@@ -241,14 +266,39 @@ export function CodeEditor({
 		const item = state?.items[index];
 		if (!state || !item) return;
 
-		const text = item.textEdit?.newText ?? item.insertText ?? item.label;
 		closeCompletion();
 		edit(({ lines, cursor }) => {
 			const line = lines[cursor.line] ?? "";
-			const from =
-				cursor.line === state.anchorLine ? state.anchorCol : cursor.col;
+
+			// A textEdit carries its own range, and that range is authoritative.
+			// Taking its newText while replacing from our own anchor is what turns
+			// `greeting.` + an item whose edit spans the dot into `greeting..at`:
+			// the server's text already includes the dot it means to replace.
+			let from: number;
+			let to: number;
+			let text: string;
+			if (item.textEdit) {
+				text = item.textEdit.newText;
+				from = item.textEdit.range.start.character;
+				to = item.textEdit.range.end.character;
+				// A range from another line cannot be applied to this one; fall back
+				// rather than corrupting the buffer.
+				if (item.textEdit.range.start.line !== cursor.line) {
+					from =
+						cursor.line === state.anchorLine ? state.anchorCol : cursor.col;
+					to = cursor.col;
+				}
+			} else {
+				text = item.insertText ?? item.label;
+				from = cursor.line === state.anchorLine ? state.anchorCol : cursor.col;
+				to = cursor.col;
+			}
+
+			from = clamp(from, 0, line.length);
+			to = clamp(Math.max(to, from), from, line.length);
+
 			const next = lines.slice();
-			next[cursor.line] = line.slice(0, from) + text + line.slice(cursor.col);
+			next[cursor.line] = line.slice(0, from) + text + line.slice(to);
 			return {
 				lines: next,
 				cursor: { line: cursor.line, col: from + text.length },
@@ -541,14 +591,14 @@ export function CodeEditor({
 				// A word character keeps the popup and re-queries with the longer
 				// prefix; anything else has ended the word being completed.
 				if (/[A-Za-z0-9_$]/.test(seq)) {
-					void requestCompletion(cursor.line, cursor.col + 1, lineText + seq);
+					completionQueued.current = true;
 				} else {
 					closeCompletion();
 				}
 			} else if (seq === "." && completionProvider) {
 				// A member access is the one place worth opening the popup unasked:
 				// it is the case where nobody remembers the whole list.
-				void requestCompletion(cursor.line, cursor.col + 1, lineText + seq);
+				completionQueued.current = true;
 			}
 		}
 	});

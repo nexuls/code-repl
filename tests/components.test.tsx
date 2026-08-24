@@ -10,6 +10,7 @@ import { LanguagePicker } from "../src/components/LanguagePicker";
 import { OutputPanel } from "../src/components/OutputPanel";
 import { StatusBar } from "../src/components/StatusBar";
 import { TabBar } from "../src/components/TabBar";
+import { DEFAULT_INDENT } from "../src/core/fs/files";
 import type { DetectedLanguage } from "../src/core/languages/detect";
 import { languageById } from "../src/core/languages/registry";
 import { darkTheme } from "../src/lib/theme";
@@ -27,6 +28,7 @@ function tab(overrides: Partial<Tab> = {}): Tab {
 		output: [],
 		running: false,
 		diagnostics: [],
+		indent: DEFAULT_INDENT,
 		...overrides,
 	};
 }

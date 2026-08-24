@@ -30,7 +30,7 @@ import { LanguagePicker } from "../components/LanguagePicker";
 import { OutputPanel } from "../components/OutputPanel";
 import { StatusBar } from "../components/StatusBar";
 import { TabBar } from "../components/TabBar";
-import { loadFile, saveFile } from "../core/fs/files";
+import { applyIndentStyle, loadFile, saveFile } from "../core/fs/files";
 import { scanDirectory } from "../core/fs/tree";
 import {
 	type DetectedLanguage,
@@ -227,7 +227,13 @@ export function App({
 			setStatus("scratch buffer has no path — open a folder to save into it");
 			return;
 		}
-		const result = await saveFile(tab.path, tab.text);
+		// The buffer holds spaces because the editor works in display cells; the
+		// file gets its own indent style back, so opening and saving a tab-indented
+		// file does not silently reformat it.
+		const result = await saveFile(
+			tab.path,
+			applyIndentStyle(tab.text, tab.indent),
+		);
 		if (!result.ok) {
 			setStatus(`could not save: ${result.message}`);
 			return;
@@ -424,6 +430,11 @@ export function App({
 
 	// --------------------------------------------------------------------- layout
 
+	// An overlay owns the keyboard while it is up. `useKeyboard` is global, so a
+	// pane left focused behind an overlay still receives every keystroke — typing
+	// a filter into the language picker would also type it into the buffer.
+	const overlayOpen = session.overlay.kind !== "none";
+
 	// The tree is dropped on a narrow terminal: 28 columns of file names are not
 	// worth an unusable editor.
 	const showTree = session.treeVisible && width >= TREE_MIN_TOTAL_WIDTH;
@@ -465,7 +476,7 @@ export function App({
 						workspace={session.workspace}
 						width={treeWidth}
 						height={bodyHeight}
-						focused={session.pane === "tree"}
+						focused={!overlayOpen && session.pane === "tree"}
 						theme={darkTheme}
 						onMove={(delta) =>
 							dispatch({
@@ -492,8 +503,9 @@ export function App({
 							filename={tab.title}
 							width={mainWidth}
 							height={editorHeight}
-							focused={session.pane === "editor"}
+							focused={!overlayOpen && session.pane === "editor"}
 							theme={darkTheme}
+							indentWidth={tab.indent.width}
 							diagnostics={tab.diagnostics}
 							completionProvider={completionProvider}
 							onChange={(text) => {
@@ -524,7 +536,7 @@ export function App({
 							summary={tab?.runSummary}
 							width={mainWidth}
 							height={outputHeight}
-							focused={session.pane === "output"}
+							focused={!overlayOpen && session.pane === "output"}
 							theme={darkTheme}
 						/>
 					) : null}

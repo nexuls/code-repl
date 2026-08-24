@@ -148,3 +148,28 @@ Hard-won facts. Things that cost time to discover and would cost it again.
   Detecting `java` alone is therefore not enough: the toolchain requires `javac`
   as the proxy for "this is a JDK", even though the run plan never invokes it.
   Found by the integration suite; a unit test now pins it.
+
+## Editing real files
+
+- The editor expands tabs to spaces so a column index equals a screen cell. That
+  makes the file's indent style something that must be **recorded on load and
+  reapplied on save** — otherwise opening a tab-indented file marks it dirty
+  immediately and saving silently reindents the whole thing.
+- LSP `didChange` is a notification and `completion` is a request, but both go
+  down the same pipe in order, so sending the change first is sufficient. The
+  ordering has to be arranged in the *editor*, though: a key handler runs before
+  React has told anyone the text changed.
+- A completion item's `textEdit.range` frequently covers more than the word being
+  completed — tsserver's member edits span the preceding dot, with the dot back
+  in `newText`. Using `newText` without its range duplicates whatever the range
+  covered.
+
+## Driving a TUI under tmux
+
+- `tmux send-keys -l 'text'` can arrive as a **bracketed paste**, not as
+  individual keypresses. Anything that only happens on the printable-character
+  path — completion triggers, per-character state — will not fire. Send
+  characters one at a time to exercise the real typing path.
+- Polling `capture-pane | grep` for a string that also appears in the *editor*
+  matches instantly and captures before anything has happened. Poll for something
+  only the result can produce, such as the output pane's border title.

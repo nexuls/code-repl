@@ -152,6 +152,57 @@ describe("editor completion", () => {
 		}
 	});
 
+	test("the request is issued after the change reaches the host", async () => {
+		// Ordering bug found by driving the real app against
+		// typescript-language-server: asking on the '.' keystroke queried a
+		// document the server had not been told about, so it completed against the
+		// previous text and returned the global scope instead of the members.
+		const events: string[] = [];
+		const { setup, input, settle } = await mount({
+			value: "obj",
+			onChange: () => events.push("change"),
+			completionProvider: async () => {
+				events.push("completion");
+				return items;
+			},
+		});
+		try {
+			// The mount-time onChange is not part of what is being asserted.
+			events.length = 0;
+			await input(() => setup.mockInput.pressKey(KeyCodes.END));
+			await input(() => setup.mockInput.typeText("."));
+			await settle();
+
+			expect(events).toEqual(["change", "completion"]);
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
+
+	test("the position comes from the settled cursor, not the keystroke", async () => {
+		// A key handler's cursor is the pre-edit one. Capturing the position when
+		// the request is queued means a paste, which can move the cursor
+		// arbitrarily, asks about the wrong place.
+		const positions: Array<[number, number]> = [];
+		const { setup, input, settle } = await mount({
+			value: "obj",
+			completionProvider: async (line, column) => {
+				positions.push([line, column]);
+				return items;
+			},
+		});
+		try {
+			await input(() => setup.mockInput.pressKey(KeyCodes.END));
+			await input(() => setup.mockInput.typeText("."));
+			await settle();
+
+			// "obj." — the cursor sits at column 4, after the dot.
+			expect(positions).toEqual([[0, 4]]);
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
+
 	test("arrows move through the list instead of the buffer", async () => {
 		const { setup, input, settle, frame } = await mount({
 			value: "",
@@ -207,6 +258,73 @@ describe("editor completion", () => {
 			await input(() => setup.mockInput.pressKey(KeyCodes.RETURN));
 			await settle();
 			expect(texts[texts.length - 1]).toBe("log");
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
+
+	test("a textEdit's own range wins over the word anchor", async () => {
+		// Found live against typescript-language-server: completing after a dot
+		// produced `greeting..at`. tsserver's textEdit range covers the dot and its
+		// newText includes it, so applying newText at our own anchor duplicates it.
+		const texts: string[] = [];
+		const { setup, input, settle } = await mount({
+			value: "greeting.",
+			completionProvider: async () => [
+				{
+					label: "at",
+					textEdit: {
+						// Spans the dot, and newText reinstates it.
+						range: {
+							start: { line: 0, character: 8 },
+							end: { line: 0, character: 9 },
+						},
+						newText: ".at",
+					},
+				},
+			],
+			onChange: (text) => texts.push(text),
+		});
+		try {
+			await input(() => setup.mockInput.pressKey(KeyCodes.END));
+			await input(() => setup.mockInput.pressKey(CTRL_SPACE));
+			await settle();
+			await input(() => setup.mockInput.pressKey(KeyCodes.RETURN));
+			await settle();
+
+			expect(texts[texts.length - 1]).toBe("greeting.at");
+		} finally {
+			setup.renderer.destroy();
+		}
+	});
+
+	test("a textEdit from another line falls back rather than corrupting the buffer", async () => {
+		const texts: string[] = [];
+		const { setup, input, settle } = await mount({
+			value: "abc",
+			completionProvider: async () => [
+				{
+					label: "safe",
+					textEdit: {
+						range: {
+							start: { line: 5, character: 0 },
+							end: { line: 5, character: 3 },
+						},
+						newText: "safe",
+					},
+				},
+			],
+			onChange: (text) => texts.push(text),
+		});
+		try {
+			await input(() => setup.mockInput.pressKey(KeyCodes.END));
+			await input(() => setup.mockInput.pressKey(CTRL_SPACE));
+			await settle();
+			await input(() => setup.mockInput.pressKey(KeyCodes.RETURN));
+			await settle();
+
+			// The word anchor is used instead; the buffer stays coherent.
+			expect(texts[texts.length - 1]).toBe("safe");
 		} finally {
 			setup.renderer.destroy();
 		}

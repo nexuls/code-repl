@@ -98,6 +98,35 @@ describe("App", () => {
 		}
 	}, 20_000);
 
+	test("typing in an overlay does not also type into the buffer", async () => {
+		// `useKeyboard` is global. A pane left focused behind an overlay still
+		// receives every keystroke, so filtering the language picker typed "rust"
+		// into the editor as well. Found by driving the real app in a terminal.
+		const setup = await mount({ initialLanguage: "python" });
+		try {
+			await act(async () => {
+				await setup.mockInput.pressKey("\u0010"); // ctrl+p
+			});
+			await setup.renderOnce();
+			await act(async () => {
+				await setup.mockInput.typeText("rust");
+			});
+			await setup.renderOnce();
+
+			const frame = setup.captureCharFrame();
+			// The picker filtered...
+			expect(frame).toContain("Rust");
+			// ...and the buffer is untouched. The popup visually occludes the rest
+			// of line 1, so the assertions are on the visible prefix and on the
+			// cursor, which the editor would have advanced had it taken the keys.
+			expect(frame).toContain('1 print("hello fro');
+			expect(frame).toContain("Col 1");
+			expect(frame).not.toContain("1 rust");
+		} finally {
+			setup.renderer.destroy();
+		}
+	}, 20_000);
+
 	test("survives a terminal too small for the tree pane", async () => {
 		// Below the width threshold the tree is dropped rather than squeezing the
 		// editor into nothing.

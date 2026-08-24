@@ -391,3 +391,48 @@ where the second step looks for it, that Java's single-file mode tolerates a
 generated file name. A registry entry can be perfectly well-formed and still not
 run — which is exactly what it found on its first run (see D30). Failing on a
 machine without Go would make the suite useless, so absence is a skip.
+
+---
+
+## D30 — A file's indent style is preserved across a save
+
+**Decision.** `fileTab` normalises tabs to spaces *and* records the file's style;
+`save` reapplies it. `savedText` holds the normalised text, so a tab-indented
+file opens clean.
+
+**Why.** Found by opening this repo's own tab-indented source in the app: the tab
+showed as dirty the instant it opened, and pressing ctrl+s would have rewritten
+every line with spaces. The editor cannot hold literal tabs — a column index
+would stop equalling a screen column — so the conversion has to be undone on the
+way out rather than avoided.
+
+**Limit.** Only *leading* whitespace round-trips. A tab used mid-line for
+alignment becomes spaces. Documented, tested, and much rarer than indentation.
+
+---
+
+## D31 — A completion request waits for its own edit to reach the server
+
+**Decision.** Typing queues a flag; the request is issued from an effect that
+runs after the one which pushes the new text to the host.
+
+**Why.** Found by driving the real app against `typescript-language-server`:
+typing `.` and asking immediately queries a document the server has not been told
+about, so it completes against the previous text — you get the global scope
+instead of the members of the thing you just dotted.
+
+**Also.** The queued flag deliberately carries *no position*. A key handler's
+cursor is the pre-edit one, and a paste can move the cursor arbitrarily far; the
+draining effect reads the settled cursor instead.
+
+---
+
+## D32 — A completion item's `textEdit` range is authoritative
+
+**Decision.** When an item has a `textEdit`, replace *its* range. The word anchor
+is only the fallback for items that have none.
+
+**Why.** Found live: completing after a dot produced `greeting..at`. tsserver's
+edit range covers the dot and its `newText` reinstates it, so applying that text
+at our own anchor duplicates it. A range naming another line falls back rather
+than corrupting the buffer.

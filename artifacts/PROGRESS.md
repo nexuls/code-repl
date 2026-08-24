@@ -71,6 +71,17 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] Verified on this machine: TypeScript, JavaScript, Python, Go, Rust, C,
       C++, Lua, Perl, Bash, Zsh, JSON all compile/run and print. The rest skip.
 
+## Phase 8 — Driving the real app
+Ran the app under tmux against real toolchains and a real language server, which
+found four bugs no test had:
+- [x] Typing into an overlay also typed into the buffer (`useKeyboard` is global,
+      and the pane behind the overlay was still focused)
+- [x] Opening a tab-indented file marked it dirty, and saving would have
+      reindented it with spaces
+- [x] Completion on `.` queried the server before it had been told about the dot
+- [x] Accepting a member completion produced `greeting..at`
+All four now have regression tests, each verified to fail without the fix.
+
 ## Notes
 Nothing is deferred silently — anything cut gets an entry in DECISIONS.md
 explaining why.

@@ -22,6 +22,7 @@ import {
 	type WorkspaceState,
 	workspaceReducer,
 } from "../src/app/state/workspace";
+import { DEFAULT_INDENT } from "../src/core/fs/files";
 import type { TreeNode } from "../src/core/fs/tree";
 import { languageById } from "../src/core/languages/registry";
 
@@ -39,6 +40,7 @@ function tab(id: string, overrides: Partial<Tab> = {}): Tab {
 		output: [],
 		running: false,
 		diagnostics: [],
+		indent: DEFAULT_INDENT,
 		...overrides,
 	};
 }
@@ -297,6 +299,31 @@ describe("tabs: ids", () => {
 
 	test("a file tab takes its title from the basename", () => {
 		expect(fileTab("/a/b/c/main.py", python, "").title).toBe("main.py");
+	});
+});
+
+describe("tabs: language", () => {
+	test("retargeting a scratch buffer renames it", () => {
+		const scratch = scratchTab(python);
+		const state = tabsReducer(withTabs(scratch), {
+			type: "set-language",
+			id: scratch.id,
+			language: rust,
+		});
+		expect(activeTab(state)?.language.id).toBe("rust");
+		expect(activeTab(state)?.title).toBe("scratch.rs");
+	});
+
+	test("a file-backed buffer keeps its filename", () => {
+		// The file on disk did not move because the grammar changed.
+		const opened = fileTab("/x/notes.txt", python, "");
+		const state = tabsReducer(withTabs(opened), {
+			type: "set-language",
+			id: opened.id,
+			language: rust,
+		});
+		expect(activeTab(state)?.language.id).toBe("rust");
+		expect(activeTab(state)?.title).toBe("notes.txt");
 	});
 });
 

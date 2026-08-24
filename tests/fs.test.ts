@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	applyIndentStyle,
+	detectIndent,
 	loadFile,
 	looksBinary,
 	MAX_FILE_BYTES,
@@ -298,5 +300,106 @@ describe("looksBinary", () => {
 
 	test("empty input is not binary", () => {
 		expect(looksBinary(new Uint8Array())).toBe(false);
+	});
+});
+
+describe("indent style", () => {
+	// The editor works in display cells, so tabs cannot survive in the buffer.
+	// That makes reapplying the file's own style on save the only thing standing
+	// between "open a file and press ctrl+s" and "silently reindent the file".
+
+	describe("detectIndent", () => {
+		test("recognises tab indentation", () => {
+			const style = detectIndent("function f() {\n\treturn 1\n}\n");
+			expect(style.useTabs).toBe(true);
+		});
+
+		test("recognises two-space indentation", () => {
+			const style = detectIndent("function f() {\n  return 1\n}\n");
+			expect(style.useTabs).toBe(false);
+			expect(style.width).toBe(2);
+		});
+
+		test("recognises four-space indentation", () => {
+			const style = detectIndent(
+				"def f():\n    return 1\n\ndef g():\n    return 2\n",
+			);
+			expect(style.useTabs).toBe(false);
+			expect(style.width).toBe(4);
+		});
+
+		test("tabs win a mixed file, because reindenting them is the lossy direction", () => {
+			const style = detectIndent("a:\n  spaces\nb:\n\ttab\n");
+			expect(style.useTabs).toBe(true);
+		});
+
+		test("a lone leading space is a comment continuation, not an indent level", () => {
+			// ` * like this` inside a block comment must not make the file 1-wide.
+			const style = detectIndent("/**\n * doc\n */\nconst a = 1\n");
+			expect(style.width).toBeGreaterThan(1);
+		});
+
+		test("an unindented file gets a usable default", () => {
+			const style = detectIndent("const a = 1\n");
+			expect(style.useTabs).toBe(false);
+			expect(style.width).toBe(2);
+		});
+	});
+
+	describe("applyIndentStyle", () => {
+		test("space files are written back untouched", () => {
+			const text = "function f() {\n  return 1\n}\n";
+			expect(applyIndentStyle(text, { useTabs: false, width: 2 })).toBe(text);
+		});
+
+		test("converts leading spaces back to tabs", () => {
+			const buffer = "function f() {\n    return 1\n}\n";
+			expect(applyIndentStyle(buffer, { useTabs: true, width: 4 })).toBe(
+				"function f() {\n\treturn 1\n}\n",
+			);
+		});
+
+		test("handles nesting", () => {
+			const buffer = "a\n    b\n        c\n";
+			expect(applyIndentStyle(buffer, { useTabs: true, width: 4 })).toBe(
+				"a\n\tb\n\t\tc\n",
+			);
+		});
+
+		test("keeps a partial level as spaces rather than rounding it away", () => {
+			// Continuation alignment is not an indent level and must not be eaten.
+			const buffer = "a\n      b\n";
+			expect(applyIndentStyle(buffer, { useTabs: true, width: 4 })).toBe(
+				"a\n\t  b\n",
+			);
+		});
+
+		test("leaves content-only and blank lines alone", () => {
+			const buffer = "a\n\nb\n";
+			expect(applyIndentStyle(buffer, { useTabs: true, width: 4 })).toBe(
+				buffer,
+			);
+		});
+	});
+
+	test("a tab-indented file survives a load/normalise/save round trip", async () => {
+		// The regression this guards: opening a tab-indented file and saving it
+		// unchanged rewrote every line with spaces.
+		const root = await fixture();
+		const path = join(root, "tabbed.ts");
+		const original = "function f() {\n\tif (x) {\n\t\treturn 1\n\t}\n}\n";
+		await writeFile(path, original);
+
+		const loaded = await loadFile(path);
+		expect(loaded.ok).toBe(true);
+		if (!loaded.ok) return;
+
+		const style = detectIndent(loaded.text);
+		// What the editor holds: tabs expanded to display cells.
+		const buffer = loaded.text.replace(/\t/g, " ".repeat(style.width));
+		expect(buffer).not.toBe(original);
+
+		await saveFile(path, applyIndentStyle(buffer, style));
+		expect(await Bun.file(path).text()).toBe(original);
 	});
 });

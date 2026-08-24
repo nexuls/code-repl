@@ -8,9 +8,15 @@
  * second tab) testable without a filesystem.
  */
 
+import {
+	DEFAULT_INDENT,
+	detectIndent,
+	type IndentStyle,
+} from "../../core/fs/files";
 import type { Language } from "../../core/languages/registry";
 import type { Diagnostic } from "../../core/lsp/protocol";
 import type { OutputChunk, RunStatus } from "../../core/runner";
+import { expandTabs } from "../../lib/text";
 
 /** One open buffer. */
 export interface Tab {
@@ -22,8 +28,14 @@ export interface Tab {
 	readonly title: string;
 	readonly language: Language;
 	readonly text: string;
-	/** Text as last loaded or saved; `text !== savedText` means dirty. */
+	/**
+	 * Text as last loaded or saved, already normalised the same way the buffer
+	 * is. Comparing raw file text against a normalised buffer would mark every
+	 * tab-indented file dirty the instant it opened.
+	 */
 	readonly savedText: string;
+	/** The file's own indent style, reapplied on save. */
+	readonly indent: IndentStyle;
 	/** Output accumulated by the most recent run. */
 	readonly output: readonly OutputChunk[];
 	/** Status of the most recent run, or `undefined` if it never ran. */
@@ -161,6 +173,10 @@ export function tabsReducer(state: TabsState, action: TabsAction): TabsState {
 			return updateTab(state, action.id, (tab) => ({
 				...tab,
 				language: action.language,
+				// A scratch buffer is named after its language, so retargeting it
+				// renames it. A file-backed buffer keeps its filename: the file on
+				// disk did not move just because the grammar changed.
+				title: tab.path ? tab.title : `scratch.${action.language.extension}`,
 			}));
 	}
 }
@@ -216,21 +232,31 @@ export function scratchTab(language: Language): Tab {
 		text: language.template,
 		// No path and no saved text: a scratch buffer starts dirty by definition.
 		savedText: "",
+		indent: DEFAULT_INDENT,
 		output: [],
 		running: false,
 		diagnostics: [],
 	};
 }
 
-/** Build a tab for a file that has been read from disk. */
+/**
+ * Build a tab for a file read from disk.
+ *
+ * The text is normalised — tabs expanded — before it becomes both `text` and
+ * `savedText`, so a tab-indented file opens *clean*. The original style is kept
+ * so saving writes the file back the way it was found.
+ */
 export function fileTab(path: string, language: Language, text: string): Tab {
+	const indent = detectIndent(text);
+	const normalised = expandTabs(text, indent.width);
 	return {
 		id: nextTabId(),
 		path,
 		title: path.slice(path.lastIndexOf("/") + 1),
 		language,
-		text,
-		savedText: text,
+		text: normalised,
+		savedText: normalised,
+		indent,
 		output: [],
 		running: false,
 		diagnostics: [],
