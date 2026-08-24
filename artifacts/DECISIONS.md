@@ -88,3 +88,37 @@ whose `requires` are *all* on `PATH`.
 first) while a machine with only the last one still works. `requires` being a
 list rather than a single binary is what makes Java's `javac`+`java` pair
 expressible without a special case.
+
+---
+
+## D7 — Child processes are spawned detached, and killed by process group
+
+**Decision.** `execute.ts` uses `node:child_process.spawn` with
+`detached: true` and kills with `process.kill(-pid)`.
+
+**Why.** Killing only the direct child is not enough. A snippet run through a
+shell — or any program that forks — leaves grandchildren alive, and those
+grandchildren inherit the stdout/stderr pipes. The first implementation waited
+for end-of-stream to decide a step was over, and a `sh` script containing
+`sleep 30` hung the whole run past its own timeout. Making the child a
+process-group leader is the only way to reach what it spawned.
+
+**Also.** Exit — not end-of-stream — is the authoritative end of a step. The
+output drain gets a bounded 100 ms grace afterwards and no more.
+
+**Rejected.** `Bun.spawn`: no `detached` option, so there is no way to create the
+process group. This is the one place `core/` reaches for a Node API over a Bun
+one.
+
+---
+
+## D8 — Failures are results, not exceptions
+
+**Decision.** `startRun` throws only `NoToolchainError`. A compile error, a
+crash, a timeout, and a missing binary all resolve as a `RunResult` with a
+status.
+
+**Why.** For a REPL, a compile error *is* the output the user asked for. Making
+it an exception would force every caller to convert it back into something
+displayable. Only "this machine fundamentally cannot run this language" is a
+programming error on the caller's part, so only that throws.

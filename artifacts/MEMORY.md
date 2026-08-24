@@ -54,3 +54,20 @@ Hard-won facts. Things that cost time to discover and would cost it again.
 - The version probe must have a timeout. A misconfigured install that hangs on
   `--version` would otherwise hang startup, since detection runs before first
   paint.
+
+## Processes
+
+- End-of-stream is **not** the end of a process. Orphaned grandchildren keep the
+  parent's pipes open, so a run must key off `close`/exit and treat the output
+  drain as a bounded courtesy.
+- An `AbortSignal` listener registered *after* the first `await` can miss an
+  abort that arrives in between. In `runStep` the listener goes in before the
+  spawn settles, and the kill is repeated once there is a live pid to signal.
+  The symptom was a `cancel()` called synchronously after `run()` being ignored
+  until the timeout fired.
+- `TextDecoder` must be used with `{ stream: true }` when decoding pipe chunks.
+  A multi-byte character split across two reads otherwise decodes as two
+  replacement characters.
+- A child killed by a signal reports `code === null` on `close`; the signal name
+  arrives separately. It is mapped to the shell's `128 + signo` convention so the
+  exit code stays a number.

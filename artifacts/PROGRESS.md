@@ -17,10 +17,10 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] Tests (16)
 
 ## Phase 2 — Run pipeline
-- [ ] Scratch directory lifecycle
-- [ ] Compile-then-execute with streaming output
-- [ ] Timeout + cancellation
-- [ ] Tests
+- [x] Scratch directory lifecycle (`$TMPDIR/code-repl-<pid>/<slot>/`)
+- [x] Compile-then-execute with streaming output
+- [x] Timeout + cancellation via process-group kill
+- [x] Tests (20)
 
 ## Phase 3 — Workspace
 - [ ] Lazy directory scan with ignore rules
