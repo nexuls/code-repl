@@ -92,6 +92,17 @@ All four now have regression tests, each verified to fail without the fix.
       apology. It was advertised in the status bar and the help overlay while
       doing nothing for most buffers.
 
+## Phase 10 — Review follow-up
+A high-effort review of the save-as work found eight issues, all real, all fixed:
+- [x] Save-as silently overwrote an existing file
+- [x] Save-as could put two tabs on one path, splitting diagnostics
+- [x] The chosen name did not change the buffer's language
+- [x] `openDocument` re-ran on every save, reverting the server to stale text
+- [x] The saved file never appeared in the tree
+- [x] Ctrl+C in a prompt quit outright, discarding dirty buffers
+- [x] A tab was marked clean with text that was never written
+- [x] The doc-comment rule skipped every `export async function`
+
 ## Notes
 Nothing is deferred silently — anything cut gets an entry in DECISIONS.md
 explaining why.

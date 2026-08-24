@@ -10,7 +10,7 @@
  * truth and no pair of fields that can disagree.
  */
 
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import {
 	useKeyboard,
 	useRenderer,
@@ -32,7 +32,7 @@ import { OutputPanel } from "../components/OutputPanel";
 import { SavePrompt } from "../components/SavePrompt";
 import { StatusBar } from "../components/StatusBar";
 import { TabBar } from "../components/TabBar";
-import { applyIndentStyle, loadFile, saveFile } from "../core/fs/files";
+import { applyIndentStyle, exists, loadFile, saveFile } from "../core/fs/files";
 import { scanDirectory } from "../core/fs/tree";
 import {
 	type DetectedLanguage,
@@ -227,20 +227,55 @@ export function App({
 		[session.workspace],
 	);
 
-	/** Write a buffer to a known path and mark it clean. */
+	/**
+	 * Re-read a directory that is already in the tree.
+	 *
+	 * Unlike expanding, this ignores the cached children — the point is that they
+	 * are out of date.
+	 */
+	const refreshDirectory = useCallback(
+		async (path: string) => {
+			if (!session.workspace.tree) return;
+			if (!findExpanded(session.workspace, path)) return;
+			const scanned = await scanDirectory(path, {
+				showHidden: session.workspace.showHidden,
+			});
+			dispatch({
+				type: "workspace",
+				action: {
+					type: "children",
+					path,
+					children: scanned.children ?? [],
+					error: scanned.error,
+				},
+			});
+		},
+		[session.workspace],
+	);
+
+	/**
+	 * Write a buffer to a path and mark it clean.
+	 *
+	 * `target` is a snapshot. What lands on disk and what the tab records as
+	 * saved are the *same* text, so an edit made while the write is in flight
+	 * stays dirty instead of being marked saved and lost at quit.
+	 */
 	const writeTo = useCallback(
 		async (target: Tab, path: string) => {
 			// The buffer holds spaces because the editor works in display cells; the
 			// file gets its own indent style back, so opening and saving a
 			// tab-indented file does not silently reformat it.
+			const written = target.text;
 			const result = await saveFile(
 				path,
-				applyIndentStyle(target.text, target.indent),
+				applyIndentStyle(written, target.indent),
 			);
 			if (!result.ok) {
 				setStatus(`could not save: ${result.message}`);
 				return;
 			}
+
+			const isNewPath = target.path !== path;
 			dispatch({
 				type: "tabs",
 				action: {
@@ -248,14 +283,63 @@ export function App({
 					id: target.id,
 					path,
 					title: path.slice(path.lastIndexOf("/") + 1),
+					text: written,
 				},
 			});
 			setStatus("saved");
-			// A buffer that just acquired a path is a document the language server
-			// has never been told about.
-			void lsp.current?.openDocument(path, target.language.id, target.text);
+
+			if (!isNewPath) {
+				// Already synced; the editor's own onChange keeps the server current.
+				// Re-opening here would bump the version with this pre-await snapshot
+				// and revert the server's copy to stale text.
+				return;
+			}
+
+			// A name can change what the buffer *is*: saving a scratch as notes.md
+			// should stop running it as Python and stop sending it to pyright.
+			const renamed = languageForFilename(path);
+			const language = renamed ?? target.language;
+			if (renamed && renamed.id !== target.language.id) {
+				dispatch({
+					type: "tabs",
+					action: { type: "set-language", id: target.id, language: renamed },
+				});
+			}
+
+			void lsp.current?.openDocument(path, language.id, written);
+
+			// The file did not exist a moment ago, so the tree does not know about
+			// it. Rescanning its directory is cheap and is the only way it appears
+			// without a restart.
+			void refreshDirectory(path.slice(0, path.lastIndexOf("/")));
 		},
-		[setStatus],
+		[setStatus, refreshDirectory],
+	);
+
+	/**
+	 * Save a buffer to a newly chosen path.
+	 *
+	 * Refuses rather than clobbering. Every scratch buffer is titled
+	 * `scratch.<ext>`, so accepting the default name twice would silently
+	 * destroy the first one; and two tabs on one path would split diagnostics and
+	 * break LSP sync when either is closed.
+	 */
+	const saveAs = useCallback(
+		async (target: Tab, path: string) => {
+			if (
+				session.tabs.tabs.some((t) => t.id !== target.id && t.path === path)
+			) {
+				setStatus(`${basename(path)} is already open in another buffer`);
+				return;
+			}
+			if (await exists(path)) {
+				setStatus(`${basename(path)} already exists — choose another name`);
+				return;
+			}
+			dispatch({ type: "overlay", overlay: { kind: "none" } });
+			await writeTo(target, path);
+		},
+		[session.tabs.tabs, setStatus, writeTo],
 	);
 
 	const save = useCallback(async () => {
@@ -360,30 +444,40 @@ export function App({
 		process.exit(0);
 	}, [renderer]);
 
+	/** Quit, or ask first when buffers would lose work. */
+	const requestQuit = useCallback(() => {
+		const dirty = dirtyTabs(session.tabs);
+		if (dirty.length === 0) {
+			quit();
+			return;
+		}
+		dispatch({
+			type: "overlay",
+			overlay: { kind: "confirm-quit", dirtyCount: dirty.length },
+		});
+	}, [session.tabs, quit]);
+
 	// ------------------------------------------------------------- global keymap
 
 	useKeyboard((key) => {
-		// An overlay owns the keyboard while it is up, apart from the quit key.
+		// An overlay owns the keyboard while it is up. Ctrl+C dismisses it rather
+		// than quitting: "cancel this prompt" is what the reflex means, and the
+		// buffer that opened the save prompt is dirty by definition — exiting on
+		// it would discard the very work the prompt exists to keep. Pressing it
+		// again, with nothing open, quits through the usual confirmation.
 		if (session.overlay.kind !== "none") {
-			if (key.ctrl && key.name === "c") quit();
+			if (key.ctrl && key.name === "c") {
+				dispatch({ type: "overlay", overlay: { kind: "none" } });
+			}
 			return;
 		}
 
 		if (key.ctrl) {
 			switch (key.name) {
 				case "c":
-				case "q": {
-					const dirty = dirtyTabs(session.tabs);
-					if (dirty.length > 0) {
-						dispatch({
-							type: "overlay",
-							overlay: { kind: "confirm-quit", dirtyCount: dirty.length },
-						});
-						return;
-					}
-					quit();
+				case "q":
+					requestQuit();
 					return;
-				}
 				case "r":
 					void run();
 					return;
@@ -634,8 +728,7 @@ export function App({
 								session.overlay.kind === "save-as"
 									? session.overlay.directory
 									: process.cwd();
-							dispatch({ type: "overlay", overlay: { kind: "none" } });
-							if (tab) void writeTo(tab, join(directory, name));
+							if (tab) void saveAs(tab, join(directory, name));
 						}}
 						onCancel={() =>
 							dispatch({ type: "overlay", overlay: { kind: "none" } })

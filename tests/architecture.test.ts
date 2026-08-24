@@ -116,7 +116,14 @@ describe("documentation stays honest", () => {
 		for (const { path, text } of coreFiles) {
 			const lines = text.split("\n");
 			for (const [index, line] of lines.entries()) {
-				if (!/^export (function|class|const|interface|type|enum) /.test(line)) {
+				// `async`, `default`, and `abstract` all sit between `export` and the
+				// keyword; missing them made the rule silently skip every async
+				// export, which is most of `core/fs`.
+				if (
+					!/^export (default |abstract |async )*(function|class|const|interface|type|enum) /.test(
+						line,
+					)
+				) {
 					continue;
 				}
 				// A re-export is documented where the symbol is defined; repeating

@@ -468,3 +468,39 @@ way to name the file. An advertised key that never works is a defect.
 
 **Scope.** A line editor, not a file browser. The tree already exists for
 choosing a directory; what is missing at that moment is a name.
+
+---
+
+## D35 — Ctrl+C dismisses an overlay; it does not quit
+
+**Decision.** While any overlay is open, Ctrl+C closes it. Quitting requires a
+second press with nothing open, and still goes through the dirty-buffer
+confirmation.
+
+**Why.** "Cancel this prompt" is what the reflex means, and the buffer that
+opened the save prompt is dirty by definition — exiting on it would discard the
+very work the prompt exists to keep. The earlier behaviour quit outright,
+skipping the confirmation entirely.
+
+---
+
+## D36 — Save-as refuses rather than clobbering
+
+**Decision.** Saving to a path that already exists, or that another tab already
+holds, reports and declines.
+
+**Why.** Every scratch buffer is titled `scratch.<ext>`, so accepting the default
+name twice would silently destroy the first — and there is no undo for that. Two
+tabs on one path is the other half: it splits diagnostics between them and
+breaks LSP sync as soon as either is closed.
+
+---
+
+## D37 — A save records the text it actually wrote
+
+**Decision.** The `saved` action carries the written text, and `savedText` is set
+from it rather than from the buffer's current contents.
+
+**Why.** Writing is async. An edit made while the write is in flight was never
+saved; marking it clean drops the dirty marker and loses it at quit. The write
+and the clean-marking now refer to the same snapshot.

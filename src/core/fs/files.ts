@@ -7,7 +7,7 @@
  * checked up front and the caller gets a typed refusal rather than a crash.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 /** Files larger than this are refused. Well beyond any hand-written source file. */
@@ -198,6 +198,21 @@ export function applyIndentStyle(text: string, style: IndentStyle): string {
 			return "\t".repeat(levels) + " ".repeat(remainder) + line.slice(spaces);
 		})
 		.join("\n");
+}
+
+/**
+ * True when something already exists at `path`.
+ *
+ * Used before a save-as: writing over a file the user did not mean to replace is
+ * not recoverable, and every scratch buffer offers the same default name.
+ */
+export async function exists(path: string): Promise<boolean> {
+	try {
+		await stat(path);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /** Read a whole file for non-buffer uses, e.g. LSP's initial document sync. */

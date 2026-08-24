@@ -158,6 +158,7 @@ describe("tabs: dirty tracking", () => {
 			id: opened.id,
 			path: "/x/new.py",
 			title: "new.py",
+			text: "x = 1",
 		});
 
 		const saved = activeTab(state)!;
@@ -299,6 +300,53 @@ describe("tabs: ids", () => {
 
 	test("a file tab takes its title from the basename", () => {
 		expect(fileTab("/a/b/c/main.py", python, "").title).toBe("main.py");
+	});
+});
+
+describe("tabs: saving", () => {
+	test("marks clean only the text that was actually written", () => {
+		// An edit made while the write was in flight is genuinely unsaved. Marking
+		// it clean drops the dirty dot and loses it at quit.
+		const opened = fileTab("/x/a.py", python, "original");
+		let state = tabsReducer(withTabs(opened), {
+			type: "edit",
+			id: opened.id,
+			text: "written",
+		});
+		// The write goes out with "written"; the user keeps typing.
+		state = tabsReducer(state, {
+			type: "edit",
+			id: opened.id,
+			text: "written and then some more",
+		});
+		state = tabsReducer(state, {
+			type: "saved",
+			id: opened.id,
+			path: "/x/a.py",
+			title: "a.py",
+			text: "written",
+		});
+
+		const current = activeTab(state)!;
+		expect(current.savedText).toBe("written");
+		expect(isDirty(current)).toBe(true);
+	});
+
+	test("a save with no concurrent edit leaves the buffer clean", () => {
+		const opened = fileTab("/x/a.py", python, "original");
+		let state = tabsReducer(withTabs(opened), {
+			type: "edit",
+			id: opened.id,
+			text: "written",
+		});
+		state = tabsReducer(state, {
+			type: "saved",
+			id: opened.id,
+			path: "/x/a.py",
+			title: "a.py",
+			text: "written",
+		});
+		expect(isDirty(activeTab(state)!)).toBe(false);
 	});
 });
 

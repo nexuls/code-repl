@@ -16,12 +16,24 @@ import { App } from "../src/app/App";
  * "the thing does not come up at all".
  */
 
+/**
+ * Renderer options matching production.
+ *
+ * `exitOnCtrlC` is the one that matters: the default is on, so a test pressing
+ * ctrl+c tears the renderer down at the OpenTUI level before the app ever sees
+ * the key, and every later assertion reads an empty frame. `index.tsx` sets it
+ * false because the app owns its own exit path.
+ */
+const RENDERER = { width: 100, height: 30, exitOnCtrlC: false } as const;
+
+/** Control keys as the terminal sends them. */
+const CTRL_S = "\u0013";
+const CTRL_C = "\u0003";
+const CTRL_P = "\u0010";
+
 /** Mount App, let async bootstrap settle, and return the setup. */
 async function mount(props: Parameters<typeof App>[0] = {}) {
-	const setup = await testRender(<App {...props} />, {
-		width: 100,
-		height: 30,
-	});
+	const setup = await testRender(<App {...props} />, RENDERER);
 	// Detection spawns version probes; the first frame paints before they finish,
 	// which is the point. Waiting lets the settled UI be asserted on.
 	// Wrapped in `act` because bootstrap resolves promises — detection, the file
@@ -106,7 +118,7 @@ describe("App", () => {
 		const setup = await mount({ initialLanguage: "python" });
 		try {
 			await act(async () => {
-				await setup.mockInput.pressKey("\u0010"); // ctrl+p
+				await setup.mockInput.pressKey(CTRL_P);
 			});
 			await setup.renderOnce();
 			await act(async () => {
@@ -138,7 +150,7 @@ describe("App", () => {
 		});
 		try {
 			await act(async () => {
-				await setup.mockInput.pressKey("\u0013"); // ctrl+s
+				await setup.mockInput.pressKey(CTRL_S);
 			});
 			await setup.renderOnce();
 			expect(setup.captureCharFrame()).toContain("save as");
@@ -165,6 +177,142 @@ describe("App", () => {
 		} finally {
 			setup.renderer.destroy();
 			await rm(root, { recursive: true, force: true });
+		}
+	}, 20_000);
+
+	test("save-as refuses to overwrite an existing file", async () => {
+		// Every scratch buffer offers the same default name, so accepting it twice
+		// would silently destroy the first. There is no undo for that.
+		const root = await mkdtemp(join(tmpdir(), "code-repl-saveas-"));
+		await writeFile(join(root, "taken.py"), "precious\n");
+		const setup = await mount({
+			initialFolder: root,
+			initialLanguage: "python",
+		});
+		try {
+			await act(async () => {
+				await setup.mockInput.pressKey(CTRL_S);
+			});
+			await setup.renderOnce();
+			await act(async () => {
+				for (let i = 0; i < "scratch.py".length; i++) {
+					await setup.mockInput.pressBackspace();
+				}
+				await setup.mockInput.typeText("taken.py");
+			});
+			await act(async () => {
+				await setup.mockInput.pressKey(KeyCodes.RETURN);
+				await new Promise((resolve) => setTimeout(resolve, 400));
+			});
+			await setup.renderOnce();
+
+			expect(await Bun.file(join(root, "taken.py")).text()).toBe("precious\n");
+			expect(setup.captureCharFrame()).toContain("already exists");
+		} finally {
+			setup.renderer.destroy();
+			await rm(root, { recursive: true, force: true });
+		}
+	}, 20_000);
+
+	test("save-as adopts the language implied by the chosen name", async () => {
+		// Saving a Python scratch as notes.md must stop running it as Python.
+		const root = await mkdtemp(join(tmpdir(), "code-repl-saveas-"));
+		const setup = await mount({
+			initialFolder: root,
+			initialLanguage: "python",
+		});
+		try {
+			await act(async () => {
+				await setup.mockInput.pressKey(CTRL_S);
+			});
+			await setup.renderOnce();
+			await act(async () => {
+				for (let i = 0; i < "scratch.py".length; i++) {
+					await setup.mockInput.pressBackspace();
+				}
+				await setup.mockInput.typeText("script.lua");
+			});
+			await act(async () => {
+				await setup.mockInput.pressKey(KeyCodes.RETURN);
+				await new Promise((resolve) => setTimeout(resolve, 400));
+			});
+			await setup.renderOnce();
+
+			const frame = setup.captureCharFrame();
+			expect(frame).toContain("script.lua");
+			// Both the status bar and the editor's mode line follow the new
+			// language. (The buffer text still says "hello from Python" — that is
+			// the Python template's greeting, which saving does not rewrite.)
+			expect(frame).toContain(" Lua ");
+			expect(frame).toContain("INSERT  lua");
+		} finally {
+			setup.renderer.destroy();
+			await rm(root, { recursive: true, force: true });
+		}
+	}, 20_000);
+
+	test("a saved file appears in the tree without a restart", async () => {
+		const root = await mkdtemp(join(tmpdir(), "code-repl-saveas-"));
+		await writeFile(join(root, "existing.py"), "");
+		const setup = await mount({
+			initialFolder: root,
+			initialLanguage: "python",
+		});
+		try {
+			expect(setup.captureCharFrame()).not.toContain("fresh.py");
+
+			await act(async () => {
+				await setup.mockInput.pressKey(CTRL_S);
+			});
+			await setup.renderOnce();
+			await act(async () => {
+				for (let i = 0; i < "scratch.py".length; i++) {
+					await setup.mockInput.pressBackspace();
+				}
+				await setup.mockInput.typeText("fresh.py");
+			});
+			await act(async () => {
+				await setup.mockInput.pressKey(KeyCodes.RETURN);
+				await new Promise((resolve) => setTimeout(resolve, 600));
+			});
+			await setup.renderOnce();
+
+			expect(setup.captureCharFrame()).toContain("fresh.py");
+		} finally {
+			setup.renderer.destroy();
+			await rm(root, { recursive: true, force: true });
+		}
+	}, 20_000);
+
+	test("ctrl+c dismisses an overlay instead of quitting", async () => {
+		// Ctrl+C in a prompt means "cancel this", and the buffer that opened the
+		// save prompt is dirty by definition — exiting on it would discard the very
+		// work the prompt exists to keep. A second press, with nothing open, goes
+		// through the usual confirmation.
+		const setup = await mount({ initialLanguage: "python" });
+		try {
+			await act(async () => {
+				await setup.mockInput.pressKey(CTRL_S);
+			});
+			await setup.renderOnce();
+			expect(setup.captureCharFrame()).toContain("save as");
+
+			await act(async () => {
+				await setup.mockInput.pressKey(CTRL_C);
+			});
+			await setup.renderOnce();
+			const dismissed = setup.captureCharFrame();
+			expect(dismissed).not.toContain("save as");
+			// Still running, with the buffer intact.
+			expect(dismissed).toContain("scratch.py");
+
+			await act(async () => {
+				await setup.mockInput.pressKey(CTRL_C);
+			});
+			await setup.renderOnce();
+			expect(setup.captureCharFrame()).toContain("unsaved changes");
+		} finally {
+			setup.renderer.destroy();
 		}
 	}, 20_000);
 

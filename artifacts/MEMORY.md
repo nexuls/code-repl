@@ -173,3 +173,11 @@ Hard-won facts. Things that cost time to discover and would cost it again.
 - Polling `capture-pane | grep` for a string that also appears in the *editor*
   matches instantly and captures before anything has happened. Poll for something
   only the result can produce, such as the output pane's border title.
+
+## Testing the app harness
+
+- `testRender` creates its renderer with OpenTUI's defaults, and `exitOnCtrlC`
+  defaults to **on**. A test pressing ctrl+c therefore tears the renderer down
+  before the app sees the key, and every later assertion silently reads an empty
+  frame — no error, no crash, just nothing. Whole-app tests must pass
+  `exitOnCtrlC: false` to match what `index.tsx` does.

@@ -63,7 +63,12 @@ export type TabsAction =
 	| { type: "next" }
 	| { type: "previous" }
 	| { type: "edit"; id: string; text: string }
-	| { type: "saved"; id: string; path: string; title: string }
+	/**
+	 * A write completed. `text` is what actually reached disk, not the buffer's
+	 * current contents: edits made while the write was in flight are genuinely
+	 * unsaved, and marking them clean would lose them at quit.
+	 */
+	| { type: "saved"; id: string; path: string; title: string; text: string }
 	| { type: "run-started"; id: string }
 	| { type: "run-output"; id: string; chunk: OutputChunk }
 	| { type: "run-finished"; id: string; status: RunStatus; summary: string }
@@ -124,7 +129,8 @@ export function tabsReducer(state: TabsState, action: TabsAction): TabsState {
 				...tab,
 				path: action.path,
 				title: action.title,
-				savedText: tab.text,
+				// The text that was written, not the current buffer.
+				savedText: action.text,
 			}));
 
 		case "run-started":
